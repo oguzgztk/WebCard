@@ -22,6 +22,8 @@ type Props = Readonly<{
   count: number
   /** Runik Kubbe: niyetler gizli. */
   hideIntent?: boolean
+  /** Üzerine kart sürükleniyor. */
+  dragHover?: boolean
 }>
 
 function intentView(intent: EnemyIntent, dmg: number | null): { icon: string; text: string; tone: string; title: string } {
@@ -45,7 +47,7 @@ function intentView(intent: EnemyIntent, dmg: number | null): { icon: string; te
   }
 }
 
-function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hotkey, count, hideIntent }: Props) {
+function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hotkey, count, hideIntent, dragHover }: Props) {
   const def = ENEMY_DEFINITIONS_MAP[enemy.defId]
   const [artFailed, setArtFailed] = useState(false)
   const art = artFailed ? null : getEnemyArtSrc(enemy.defId)
@@ -57,6 +59,7 @@ function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hot
 
   return (
     <motion.article
+      data-enemy-uid={enemy.uid}
       layout
       initial={{ opacity: 0, y: -20, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
@@ -102,6 +105,7 @@ function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hot
         className={cn(
           'relative flex h-[clamp(6.5rem,30dvh,18rem)] w-full items-center justify-center rounded-2xl transition-[box-shadow,outline-color]',
           targetable && 'outline outline-2 outline-offset-2 outline-[#c4a054]/60 hover:outline-[#f0d080] hover:shadow-[0_0_40px_-6px_rgb(240_208_128/0.6)]',
+          dragHover && 'outline outline-2 outline-offset-2 outline-[#ff9a6a] shadow-[0_0_44px_-6px_rgb(255_120_80/0.7)]',
         )}
       >
         <motion.div

@@ -40,6 +40,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
   const tapCard = useGameStore((s) => s.tapCard)
   const playCardAction = useGameStore((s) => s.playCardAction)
   const tapPotion = useGameStore((s) => s.tapPotion)
+  const dropCard = useGameStore((s) => s.dropCard)
   const drinkPotionAction = useGameStore((s) => s.drinkPotionAction)
   const cancelTargetMode = useGameStore((s) => s.cancelTargetMode)
   const endTurn = useGameStore((s) => s.endTurn)
@@ -49,6 +50,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
   const runMode = Boolean(onVictory)
   const intentsHidden = battle.relicIds?.includes('runic_dome') ?? false
   const [pile, setPile] = useState<Pile>(null)
+  const [dragHoverUid, setDragHoverUid] = useState<string | null>(null)
   const shake = useAnimationControls()
 
   useEffect(() => {
@@ -230,6 +232,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
                 enemy={enemy}
                 count={game.enemies.length}
                 hideIntent={intentsHidden}
+                dragHover={dragHoverUid === enemy.uid}
                 intentDamage={intentHitDamage(game, enemy)}
                 targetable={Boolean(targetMode) && playerTurn}
                 acting={actingEnemyUid === enemy.uid}
@@ -284,6 +287,8 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
               phaseAllowsPlay={playerTurn}
               targetModeCardId={targetMode?.cardInstanceId ?? null}
               onSelectCard={tapCard}
+              onDropCard={dropCard}
+              onDragHover={setDragHoverUid}
               textContext={textContext}
             />
           </div>

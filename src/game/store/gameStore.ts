@@ -37,6 +37,8 @@ type CombatStore = {
   playCardAction: (instanceId: string, enemyUid?: string | null) => void
   /** Kartı oyna; birden çok düşman ve tek hedefli kartsa hedef seçimine gir. */
   tapCard: (instanceId: string) => void
+  /** Sürükle-bırak: kart oyun alanına bırakıldı. Hedefli kart düşman üzerine bırakılmalı. */
+  dropCard: (instanceId: string, enemyUid: string | null) => void
   /** İksire dokun: gerekirse hedef seçimine gir, değilse hemen kullan. */
   tapPotion: (index: number) => void
   drinkPotionAction: (index: number, enemyUid?: string | null) => void
@@ -124,6 +126,20 @@ export const useGameStore = create<CombatStore>((set, get) => ({
       return
     }
     get().playCardAction(instanceId, alive[0]?.uid ?? null)
+  },
+
+  dropCard(instanceId, enemyUid) {
+    const { game, busy } = get()
+    if (busy || game.phase !== 'playerTurn') return
+    const inst = game.hand.find((c) => c.instanceId === instanceId)
+    if (!inst) return
+    const alive = game.enemies.filter((e) => e.hp > 0)
+    const targeted = needsTarget(inst.defId)
+    if (targeted && alive.length > 1 && !enemyUid) {
+      sfx.denied() // hedefli kart boşluğa bırakıldı
+      return
+    }
+    get().playCardAction(instanceId, targeted ? (enemyUid ?? alive[0]?.uid ?? null) : (alive[0]?.uid ?? null))
   },
 
   tapPotion(index) {
