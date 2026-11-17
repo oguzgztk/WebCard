@@ -34,7 +34,7 @@ type RunStore = {
   run: RunState | null
   hasSavedRun: () => boolean
   loadRun: () => void
-  startRun: (masterSeed: number, characterId: string, difficulty?: Difficulty) => void
+  startRun: (masterSeed: number, characterId: string, difficulty?: Difficulty, daily?: boolean) => void
   selectNode: (nodeId: string) => void
   completeCombat: (playerHp: number, stats?: Partial<CombatStats>, potionsLeft?: ReadonlyArray<string>) => void
   defeatRun: (stats?: Partial<CombatStats>) => void
@@ -72,11 +72,11 @@ export const useRunStore = create<RunStore>((set) => ({
     if (saved) set({ run: saved })
   },
 
-  startRun(masterSeed, characterId, difficulty = 'normal') {
+  startRun(masterSeed, characterId, difficulty = 'normal', daily = false) {
     clearLegacySaves()
     clearCombatSave()
     updateMeta((m) => ({ ...m, runsStarted: m.runsStarted + 1 }))
-    set({ run: generateRun(masterSeed, characterId, difficulty) })
+    set({ run: { ...generateRun(masterSeed, characterId, difficulty), daily } })
   },
 
   selectNode: (nodeId) => apply(set, (r) => selectNode(r, nodeId)),

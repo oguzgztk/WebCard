@@ -14,6 +14,7 @@ import {
   availableNodeIds,
   buyShopCard,
   buyShopPotion,
+  dailySeed,
   eventOutcomeGoldCost,
   generateRun,
   getCardShopPrice,
@@ -39,6 +40,15 @@ describe('veri bütünlüğü', () => {
     for (const tier of Object.values(ENCOUNTERS)) {
       for (const e of tier) for (const id of e.enemyDefIds) expect(ENEMY_DEFINITIONS_MAP[id], id).toBeDefined()
     }
+  })
+})
+
+describe('günün koşusu', () => {
+  it('derives a stable seed from the date', () => {
+    expect(dailySeed(new Date(2026, 10, 17))).toBe(20261117)
+    const a = generateRun(dailySeed(new Date(2026, 0, 2)), 'demirci').nodes.map((n) => n.kind)
+    const b = generateRun(dailySeed(new Date(2026, 0, 2)), 'demirci').nodes.map((n) => n.kind)
+    expect(a).toEqual(b)
   })
 })
 

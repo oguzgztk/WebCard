@@ -63,6 +63,11 @@ export function pickPotion(seed: number): { id: string; nextSeed: number } {
   return { id: pool[Math.floor(float * pool.length)]!, nextSeed }
 }
 
+/** Günün Koşusu tohumu — yerel tarihe göre (YYYYMMDD); herkes aynı gün aynı haritayı oynar. */
+export function dailySeed(date = new Date()): number {
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
+}
+
 /** Eski kayıtları güncel şemaya tamamlar. */
 export function normalizeRun(run: RunState): RunState {
   return { ...run, potions: run.potions ?? [], pendingPotion: run.pendingPotion ?? null, shopPotions: run.shopPotions ?? [] }

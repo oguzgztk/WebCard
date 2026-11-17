@@ -90,6 +90,11 @@ export function RunEndScreen({ run, onContinue }: Props) {
           Puan: {score}
         </motion.p>
 
+        <p className="mt-1 text-[11px] text-[#6a6050]">
+          {run.daily ? 'Günün Koşusu · ' : ''}Tohum: <span className="font-mono">{run.masterSeed}</span>
+          {run.difficulty === 'hard' ? ' · Zor' : ''}
+        </p>
+
         {run.relics.length > 0 && (
           <div className="mt-3 flex justify-center">
             <RelicBadgeRow relicIds={run.relics} />

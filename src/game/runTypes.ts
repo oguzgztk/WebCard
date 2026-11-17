@@ -65,6 +65,8 @@ export interface RunState {
   characterId: string
   /** Koşunun ana tohumu (paylaşılabilir). */
   masterSeed: number
+  /** Günün Koşusu mu (tohum tarihten türetilir). */
+  daily?: boolean
   /** Ödül RNG'si; her kullanımda ilerler. */
   rngSeed: number
 

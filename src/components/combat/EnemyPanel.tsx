@@ -117,6 +117,33 @@ function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hot
             </span>
           )}
         </motion.div>
+        {/* Vuruş izi — her can kaybında yön değiştiren parlak bir kesik */}
+        {hitKey > 0 && (
+          <motion.svg
+            key={`slash-${hitKey}`}
+            aria-hidden
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute inset-[8%] z-10"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.4, delay: 0.12 }}
+          >
+            <motion.line
+              x1={hitKey % 2 ? 18 : 82}
+              y1={18}
+              x2={hitKey % 2 ? 82 : 18}
+              y2={82}
+              stroke="#fff3d0"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
+              style={{ filter: 'drop-shadow(0 0 4px #ffb060) drop-shadow(0 0 10px #ff6a30)' }}
+            />
+          </motion.svg>
+        )}
         <FloatingNumbers floaters={floaters} />
         {targetable && hotkey !== undefined && (
           <span className="absolute right-1 top-1 rounded border border-[#5a4a2a] bg-black/70 px-1.5 text-[10px] font-semibold text-[#e8c878]">

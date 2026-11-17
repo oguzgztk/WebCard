@@ -9,5 +9,5 @@ export const HAND_DRAW_SIZE = 5 as const
 /** Elimiz ötesine taşmak yerine fazla kart çekmeyi atlama (Sts’ye benzer sınır için). */
 export const MAX_HAND_SIZE = 12 as const
 
-/** Oyuncu başlangıç canı — düşman debuff / çok vuruşları ile denge. */
-export const PLAYER_MAX_HP = 42 as const
+/** Yedek oyuncu canı — savaş seçeneklerinde `playerMaxHp` verilmezse (karakterler kendi canını verir). */
+export const PLAYER_MAX_HP = 80 as const

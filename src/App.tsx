@@ -12,7 +12,7 @@ import { RunEndScreen } from '@/components/screens/RunEndScreen'
 import { ShopScreen } from '@/components/screens/ShopScreen'
 import type { BattleChoice } from '@/game/battleChoice'
 import { nodeTitle } from '@/game/nodeText'
-import { currentNode } from '@/game/runEngine'
+import { currentNode, dailySeed } from '@/game/runEngine'
 import type { RunState } from '@/game/runTypes'
 import { useRunStore } from '@/game/store/runStore'
 
@@ -112,7 +112,9 @@ export default function App() {
       el: (
         <LobbyScreen
           onStartBattle={setQuickBattle}
-          onStartRun={(characterId, difficulty) => store.startRun(Date.now(), characterId, difficulty)}
+          onStartRun={(characterId, difficulty, daily) =>
+            store.startRun(daily ? dailySeed() : Date.now(), characterId, difficulty, daily)
+          }
           onContinueRun={store.loadRun}
           hasSavedRun={store.hasSavedRun()}
         />

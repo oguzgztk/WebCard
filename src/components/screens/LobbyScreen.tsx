@@ -14,7 +14,7 @@ import { cn } from '@/lib/cn'
 
 type Props = Readonly<{
   onStartBattle: (choice: BattleChoice) => void
-  onStartRun: (characterId: string, difficulty: Difficulty) => void
+  onStartRun: (characterId: string, difficulty: Difficulty, daily: boolean) => void
   onContinueRun: () => void
   hasSavedRun: boolean
 }>
@@ -42,6 +42,7 @@ const PRESETS: readonly Preset[] = [
 export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSavedRun }: Props) {
   const [view, setView] = useState<'main' | 'character'>('main')
   const [difficulty, setDifficulty] = useState<Difficulty>('normal')
+  const [daily, setDaily] = useState(false)
   const meta = useMemo(() => loadMeta(), [])
   // İlk ziyarette rehber kendiliğinden açılır.
   const [helpOpen, setHelpOpen] = useState(() => meta.runsStarted === 0 && !hasSeenHelp())
@@ -127,6 +128,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   sfx.click()
+                  setDaily(false)
                   setView('character')
                 }}
                 className="group relative w-full overflow-hidden rounded-2xl border border-[#6a5230]/70 bg-gradient-to-b from-[#1f1608]/90 to-black/90 px-6 py-5 text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.75),inset_0_1px_0_rgb(255_255_255/0.08)] transition-all hover:border-[#8a6c42]/80"
@@ -140,6 +142,32 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                     </p>
                   </div>
                   <span className="shrink-0 text-2xl text-[#c4a054]/70 transition-transform group-hover:translate-x-1 group-hover:text-[#dbb96a]/90">→</span>
+                </div>
+              </motion.button>
+
+              {/* Günün Koşusu */}
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  sfx.click()
+                  setDaily(true)
+                  setView('character')
+                }}
+                className="group relative w-full overflow-hidden rounded-2xl border border-[#4a3a6a]/70 bg-gradient-to-b from-[#150f20]/90 to-black/90 px-6 py-3.5 text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.75)] transition-all hover:border-[#7a5aa8]/80"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#a080e0]">
+                      {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
+                    </p>
+                    <h2 className="mt-0.5 font-display text-[1.3rem] font-semibold tracking-tight text-[#f2ebe3]">Günün Koşusu</h2>
+                    <p className="text-[11px] text-[#6a6258]">Bugün herkes aynı haritayı oynuyor.</p>
+                  </div>
+                  <span className="shrink-0 text-2xl text-[#a080e0]/70 transition-transform group-hover:translate-x-1">☾</span>
                 </div>
               </motion.button>
 
@@ -196,7 +224,9 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
               className="flex flex-col gap-4"
             >
               <div className="text-center">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#7a6e57]">Karakterini seç</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#7a6e57]">
+                  {daily ? 'Günün Koşusu — karakterini seç' : 'Karakterini seç'}
+                </p>
               </div>
 
               <div className="mx-auto flex rounded-lg border border-[#3a342b] bg-black/40 p-1" role="radiogroup" aria-label="Zorluk">
@@ -238,7 +268,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                     whileTap={{ scale: 0.97 }}
                     onClick={() => {
                       sfx.turnStart()
-                      onStartRun(char.id, difficulty)
+                      onStartRun(char.id, difficulty, daily)
                     }}
                     className="group relative flex flex-col overflow-hidden rounded-2xl border text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.8)] transition-all"
                     style={{ borderColor: `${char.accentColor}45` }}
