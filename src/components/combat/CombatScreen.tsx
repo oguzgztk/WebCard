@@ -1,364 +1,419 @@
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
-import { useEffect } from 'react'
+import { AnimatePresence, motion, useAnimationControls } from 'framer-motion'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Hand } from '@/components/cards/Hand'
-import { EnemyPanel } from '@/components/combat/EnemyPanel'
-import { DeckPile } from '@/components/combat/DeckPile'
-import { DiscardPile } from '@/components/combat/DiscardPile'
 import { EndTurnButton } from '@/components/combat/EndTurnButton'
+import { EnemyPanel } from '@/components/combat/EnemyPanel'
 import { EnergyOrb } from '@/components/combat/EnergyOrb'
+import { PileIndicator } from '@/components/combat/PileIndicators'
 import { PlayerPanel } from '@/components/combat/PlayerPanel'
 import { RelicBadgeRow } from '@/components/relics/RelicCard'
+import { DeckViewer } from '@/components/ui/DeckViewer'
+import { SettingsButton } from '@/components/ui/SettingsButton'
 import { UIButton } from '@/components/ui/UIButton'
+import { CARD_DEFINITIONS_MAP } from '@/data/cards'
 import type { BattleChoice } from '@/game/battleChoice'
-import { RELIC_MAP } from '@/game/relics'
+import { incomingDamage, intentHitDamage } from '@/game/engine/combatEngine'
 import { useGameStore } from '@/game/store/gameStore'
-import type { EnemyRuntime, GamePhase } from '@/game/types'
+import type { CombatStats, GameState } from '@/game/types'
+import { cn } from '@/lib/cn'
 
 type Props = Readonly<{
   battle: BattleChoice
-  onLeaveBattle: () => void
-  /** Koşu modu: galibiyette bu callback tetiklenir; menüye dönmek yerine ödüle geçilir. */
-  onVictory?: (playerHpRemaining: number) => void
-  /** Koşu modu: yenilgide bu callback tetiklenir. */
-  onDefeat?: () => void
+  /** Menüye dön (koşu modunda koşu kayıtlı kalır). */
+  onExit: () => void
+  /** Koşu modu: galibiyette ödüle geç. */
+  onVictory?: (playerHp: number, stats: CombatStats) => void
+  /** Koşu modu: yenilgi. */
+  onDefeat?: (stats: CombatStats) => void
 }>
 
-/** Tek viewport içinde: üst çubuk, düşman orta bölge, alt bölümde el + oyuncu paneli (kaydırmasız) */
-export function CombatScreen({ battle, onLeaveBattle, onVictory, onDefeat }: Props) {
+type Pile = 'draw' | 'discard' | 'exhaust' | null
+
+export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
   const game = useGameStore((s) => s.game)
-  const targetBundle = useGameStore((s) => s.targetMode)
-  const playCardBridge = useGameStore((s) => s.playCardAction)
-  const lockTargetLens = useGameStore((s) => s.enterTargetMode)
-  const dissolveTargetLens = useGameStore((s) => s.cancelTargetMode)
-  const resolveRound = useGameStore((s) => s.endTurn)
-  const restartCombat = useGameStore((s) => s.startNewCombat)
-  const resumeOrStartCombat = useGameStore((s) => s.resumeOrStartCombat)
+  const targetMode = useGameStore((s) => s.targetMode)
+  const busy = useGameStore((s) => s.busy)
+  const actingEnemyUid = useGameStore((s) => s.actingEnemyUid)
+  const startBattle = useGameStore((s) => s.startBattle)
+  const tapCard = useGameStore((s) => s.tapCard)
+  const playCardAction = useGameStore((s) => s.playCardAction)
+  const cancelTargetMode = useGameStore((s) => s.cancelTargetMode)
+  const endTurn = useGameStore((s) => s.endTurn)
   const devKill = useGameStore((s) => s.devKillAllEnemies)
+  const activeBattle = useGameStore((s) => s.battle)
+
+  const runMode = Boolean(onVictory)
+  const [pile, setPile] = useState<Pile>(null)
+  const shake = useAnimationControls()
 
   useEffect(() => {
-    // Koşu modunda (persistKey) yarım kalan savaş kaydı varsa oradan sürer.
-    resumeOrStartCombat(battle)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [battle.seed, battle.enemyDefId, battle.persistKey])
+    startBattle(battle)
+    // Savaş kimliği değişince yeniden başlat; diğer alanlar aynı savaşın parçası.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battle.seed, battle.persistKey, battle.enemyDefIds.join()])
 
-  const playerMayAct = game.phase === 'playerTurn'
-  const livingEnemies = game.enemies.filter((e) => e.hp > 0)
-  const needsTargetPick = playerMayAct && livingEnemies.length > 1
-
-  const handleCardTap = (instanceId: string) => {
-    if (!playerMayAct) return
-
-    const alive = game.enemies.filter((e) => e.hp > 0)
-    if (alive.length > 1) {
-      lockTargetLens(instanceId)
-      return
+  // Oyuncu hasar alınca ekran sarsıntısı
+  const prevHp = useRef(game.player.hp)
+  useEffect(() => {
+    const lost = prevHp.current - game.player.hp
+    prevHp.current = game.player.hp
+    if (lost > 0) {
+      const k = Math.min(1, lost / 18)
+      void shake.start({ x: [0, -10 * k - 3, 9 * k + 2, -6 * k, 3, 0], transition: { duration: 0.4 } })
     }
-    playCardBridge(instanceId, alive.at(0)?.uid ?? null)
-  }
+  }, [game.player.hp, shake])
 
+  const playerTurn = game.phase === 'playerTurn' && !busy
+  const livingEnemies = game.enemies.filter((e) => e.hp > 0)
+  const incoming = useMemo(() => incomingDamage(game), [game])
+  const hasPlayable = game.hand.some((c) => (CARD_DEFINITIONS_MAP[c.defId]?.cost ?? 99) <= game.player.energy)
+
+  const textContext = useMemo(
+    () => ({
+      player: game.player.statuses,
+      block: game.player.block,
+      target: livingEnemies.length === 1 ? livingEnemies[0]!.statuses : undefined,
+    }),
+    [game.player.statuses, game.player.block, livingEnemies],
+  )
+
+  // Klavye: 1–9 kart, E tur bitir, Esc iptal; hedef modunda 1–n düşman seç.
+  const stateRef = useRef({ game, targetMode, playerTurn, pile })
+  stateRef.current = { game, targetMode, playerTurn, pile }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const { game: g, targetMode: tm, playerTurn: pt, pile: p } = stateRef.current
+      if (p || e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === 'Escape') {
-        dissolveTargetLens()
+        cancelTargetMode()
         return
       }
-      if (!playerMayAct) return
-      const idx = parseInt(e.key, 10) - 1
-      if (!isNaN(idx) && idx >= 0 && idx < game.hand.length) {
-        handleCardTap(game.hand[idx].instanceId)
+      if (!pt) return
+      const n = parseInt(e.key, 10)
+      if (!Number.isNaN(n) && n >= 1) {
+        if (tm) {
+          const enemy = g.enemies.filter((x) => x.hp > 0)[n - 1]
+          if (enemy) playCardAction(tm.cardInstanceId, enemy.uid)
+        } else if (g.hand[n - 1]) {
+          tapCard(g.hand[n - 1]!.instanceId)
+        }
         return
       }
-      if ((e.key === 'e' || e.key === 'E') && !targetBundle) {
-        resolveRound(battle.relicIds)
-      }
+      if (e.key.toLowerCase() === 'e' && !tm) endTurn()
+      if (e.key.toLowerCase() === 'd') setPile('draw')
+      if (e.key.toLowerCase() === 'a') setPile('discard')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dissolveTargetLens, playerMayAct, game.hand, targetBundle])
+  }, [cancelTargetMode, playCardAction, tapCard, endTurn])
 
-  const handleEnemyChosen = (enemy: EnemyRuntime) => () => {
-    const id = targetBundle?.cardInstanceId
-    if (!id) return
-    playCardBridge(id, enemy.uid)
-  }
+  // Store bu savaşı başlatana kadar çizme — önceki savaşın durumundan sahte can/blok animasyonları olmasın.
+  if (activeBattle !== battle) return <div className="h-dvh bg-[#080807]" />
 
-  const statusCopy = summarizePhase(game.phase)
-
-  const retryBattle = () => {
-    restartCombat(
-      battle.seed,
-      battle.enemyDefId,
-      battle.deckDefinitionIds,
-      battle.playerCurrentHp,
-      battle.playerMaxHp,
-      battle.relicIds,
-    )
-  }
+  const tierBadge =
+    battle.tier === 'boss' ? 'border-[#6a3aa8] text-[#c8a0f0]' : battle.tier === 'elite' ? 'border-[#a84a3a] text-[#f0a08a]' : ''
 
   return (
-    <div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-[#080807]">
-      <OutcomeModal
-        phase={game.phase}
-        onRestart={retryBattle}
-        onGoLobby={onLeaveBattle}
-        onContinueRun={onVictory ? () => onVictory(game.player.hp) : undefined}
-        onRunDefeat={onDefeat}
+    <motion.div
+      animate={shake}
+      className="relative flex h-dvh max-h-dvh flex-col overflow-hidden bg-[#080807]"
+      onClick={() => targetMode && cancelTargetMode()}
+    >
+      {/* Sahne ışığı */}
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute inset-0 transition-opacity duration-700',
+          battle.tier === 'boss' ? 'opacity-100' : 'opacity-60',
+        )}
+        style={{
+          background:
+            battle.tier === 'boss'
+              ? 'radial-gradient(ellipse 70% 50% at 50% 30%, rgb(70 30 90/0.35), transparent 70%)'
+              : 'radial-gradient(ellipse 70% 50% at 50% 30%, rgb(90 60 35/0.28), transparent 70%)',
+        }}
       />
+      <AnimatePresence>
+        {game.phase === 'enemyTurn' && (
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_50%_100%,rgb(120_20_10/0.25),transparent_60%)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+        )}
+      </AnimatePresence>
+
+      <OutcomeOverlay
+        game={game}
+        runMode={runMode}
+        onContinue={() => onVictory?.(game.player.hp, game.stats)}
+        onDefeat={() => onDefeat?.(game.stats)}
+        onRetry={() => startBattle(battle, { fresh: true })}
+        onExit={onExit}
+      />
+      <TurnBanner game={game} />
 
       {/* Üst çubuk */}
-      <header className="surface-playmat flex shrink-0 items-center gap-3 border-b border-[#2c2824] px-3 py-2.5 backdrop-blur-sm sm:gap-4 sm:px-4">
+      <header className="relative z-20 flex shrink-0 items-center gap-2 border-b border-[#2c2824] bg-black/30 px-3 py-2 backdrop-blur-sm sm:gap-3 sm:px-4">
         <UIButton
           tone="ghost"
           size="compact"
           className="shrink-0"
-          title={battle.persistKey ? 'Menüye dön — koşu kaydedilir, "Devam et" ile sürer' : undefined}
-          onClick={() => onLeaveBattle()}
+          title={runMode ? 'Menüye dön — koşu kaydedilir, "Devam et" ile sürer' : 'Menüye dön'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onExit()
+          }}
         >
           ← Menü
         </UIButton>
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-          <span className="truncate font-display text-[0.955rem] font-semibold tracking-tight text-[#e4ddd0] sm:text-[1rem]">
+          <span
+            className={cn(
+              'truncate font-display text-[1rem] font-semibold tracking-tight text-[#e4ddd0]',
+              tierBadge && `rounded-md border px-2 ${tierBadge}`,
+            )}
+          >
             {battle.label}
           </span>
-          {battle.relicIds && battle.relicIds.length > 0 && (
-            <RelicBadgeRow relicIds={battle.relicIds} relicMap={RELIC_MAP} />
-          )}
+          {battle.relicIds && battle.relicIds.length > 0 && <RelicBadgeRow relicIds={battle.relicIds} />}
         </div>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-3">
           <div className="text-right">
             <div className="text-[9px] uppercase tracking-[0.2em] text-[#746b5f]">Tur</div>
-            <div className="font-display text-xl font-semibold tabular-nums leading-none tracking-tight text-[#dfc07a]">
-              {game.playerTurnCount}
+            <div className="font-display text-xl font-semibold tabular-nums leading-none text-[#dfc07a]">
+              {game.playerTurnCount + 1}
             </div>
           </div>
           {import.meta.env.DEV && (
             <button
               onClick={devKill}
               title="DEV: Düşmanları öldür"
-              className="rounded border border-dashed border-[#c45a3e]/50 px-2 py-0.5 text-[9px] font-mono text-[#c45a3e]/70 transition-colors hover:border-[#c45a3e] hover:text-[#c45a3e]"
+              className="rounded border border-dashed border-[#c45a3e]/50 px-2 py-0.5 font-mono text-[9px] text-[#c45a3e]/70 hover:text-[#c45a3e]"
             >
               ☠ dev
             </button>
           )}
-          <EnergyOrb capacity={game.player.maxEnergy} current={game.player.energy} size="compact" />
+          <SettingsButton />
         </div>
       </header>
 
-      {/* Orta + alt: esnek yükseklik, el için ayrılmış alt bölüm */}
-      <div className="relative flex min-h-0 flex-1 flex-col px-3 pb-2 pt-2 sm:px-4">
-        <BackdropDimOverlay show={game.phase === 'enemyTurn'} />
-
-        <LayoutGroup id="battlefield-layout">
-          <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden lg:flex-row lg:gap-3">
-            {/* Deste / çöp */}
-            <div className="flex shrink-0 flex-row justify-center gap-4 lg:w-[100px] lg:flex-col lg:justify-start lg:gap-2">
-              <DeckPile count={game.drawPile.length} label="Deste" size="compact" />
-              <DiscardPile count={game.discardPile.length} label="Çöp" size="compact" />
-            </div>
-
-            {/* Düşman — kalan yüksekliği doldur; kırpma yok, portre flex ile sığar */}
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="mx-auto flex w-full max-w-2xl flex-1 min-h-0 flex-col gap-2">
-                  {game.enemies.map((enemy) => {
-                    const awaits = Boolean(needsTargetPick && targetBundle)
-                    return (
-                      <div key={enemy.uid} className="flex min-h-0 flex-1 flex-col">
-                        <EnemyPanel
-                          enemy={enemy}
-                          layout="compact"
-                          awaitingTargetPick={awaits}
-                          disabled={!awaits}
-                          onDeclareTarget={targetBundle ? handleEnemyChosen(enemy) : () => undefined}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Alt blok */}
-          <footer className="mt-1.5 flex shrink-0 flex-col gap-1.5 border-t border-[#252220] pt-1.5">
-            {/* Oyuncu + kontroller */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="min-w-0 flex-1">
-                <PlayerPanel player={game.player} layout="compact" />
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                {targetBundle && playerMayAct && (
-                  <p className="hidden max-w-[160px] text-[10px] leading-tight text-[#dfc07a]/85 sm:block">
-                    Düşmana tıkla ·{' '}
-                    <kbd className="rounded border border-[#3f3a34] bg-black/52 px-1 py-px text-[9px] text-[#c9bfaf]">
-                      Esc
-                    </kbd>
-                  </p>
-                )}
-                {targetBundle && (
-                  <UIButton tone="ghost" size="compact" onClick={() => dissolveTargetLens()}>
-                    İptal
-                  </UIButton>
-                )}
-                <UIButton tone="ghost" size="compact" onClick={() => retryBattle()}>
-                  ↺
-                </UIButton>
-                <EndTurnButton
-                  size="compact"
-                  disabled={!playerMayAct || Boolean(targetBundle)}
-                  onPush={() => resolveRound(battle.relicIds)}
-                />
-              </div>
-            </div>
-
-            {/* Durum şeridi */}
-            <div className="flex items-center justify-between gap-2 px-0.5">
-              <p className="text-[10px] leading-none text-[#5a5449]">{statusCopy}</p>
-              {playerMayAct && !targetBundle && (
-                <p className="hidden text-[9px] leading-none text-[#3f3b36] sm:block">
-                  <kbd className="rounded border border-[#2c2924] bg-black/40 px-1">1–7</kbd> kart ·{' '}
-                  <kbd className="rounded border border-[#2c2924] bg-black/40 px-1">E</kbd> tur bitir
-                </p>
-              )}
-              {targetBundle && playerMayAct && (
-                <p className="text-[10px] leading-none text-[#dfc07a]/70 sm:hidden">
-                  Düşmana tıkla ya da{' '}
-                  <kbd className="rounded border border-[#3f3a34] bg-black/52 px-1 py-px text-[9px] text-[#c9bfaf]">
-                    Esc
-                  </kbd>
-                </p>
-              )}
-            </div>
-
-            <div className="min-h-[15rem] shrink-0 sm:min-h-[15.5rem]">
-              <Hand
-                cards={game.hand}
-                energy={game.player.energy}
-                phaseAllowsPlay={playerMayAct}
-                targetModeCardId={targetBundle?.cardInstanceId ?? null}
-                onSelectCard={(id) => handleCardTap(id)}
-                layout="compact"
+      {/* Düşmanlar */}
+      <main className="relative z-0 flex min-h-0 flex-1 items-center justify-center gap-2 px-3 pb-1 pt-3 sm:gap-8 sm:px-6">
+        <AnimatePresence>
+          {game.enemies.map((enemy) => {
+            const idx = livingEnemies.findIndex((e) => e.uid === enemy.uid)
+            return (
+              <EnemyPanel
+                key={enemy.uid}
+                enemy={enemy}
+                count={game.enemies.length}
+                intentDamage={intentHitDamage(game, enemy)}
+                targetable={Boolean(targetMode) && playerTurn}
+                acting={actingEnemyUid === enemy.uid}
+                hotkey={idx >= 0 ? idx + 1 : undefined}
+                onSelect={() => targetMode && playCardAction(targetMode.cardInstanceId, enemy.uid)}
               />
-            </div>
-          </footer>
-        </LayoutGroup>
-      </div>
-    </div>
+            )
+          })}
+        </AnimatePresence>
+        <AnimatePresence>
+          {targetMode && playerTurn && (
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[#5a4a2a] bg-black/80 px-3 py-1 text-[12px] font-medium text-[#e8c878]"
+            >
+              Hedef seç · <kbd className="text-[10px] opacity-70">1–{livingEnemies.length}</kbd> · Esc iptal
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Alt bölüm */}
+      <footer className="relative z-20 flex shrink-0 flex-col gap-1.5 border-t border-[#252220] bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-1.5 sm:px-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="min-w-0 flex-1 sm:max-w-md">
+            <PlayerPanel
+              player={game.player}
+              characterId={battle.characterId}
+              incoming={incoming}
+              showIncoming={game.phase === 'playerTurn'}
+            />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <EndTurnButton disabled={!playerTurn || Boolean(targetMode)} busy={busy} nudge={!hasPlayable} onPush={endTurn} />
+          </div>
+        </div>
+
+        <div className="flex h-[13.4rem] min-h-0 items-end gap-1.5 sm:gap-3">
+          <div className="flex shrink-0 flex-col items-center gap-2 pb-1">
+            <EnergyOrb capacity={game.player.maxEnergy} current={game.player.energy} />
+            <PileIndicator label="Çekme destesi" icon="🂠" count={game.drawPile.length} onOpen={() => setPile('draw')} hotkey="D" />
+          </div>
+          <div className="min-w-0 flex-1 self-stretch">
+            <Hand
+              cards={game.hand}
+              energy={game.player.energy}
+              phaseAllowsPlay={playerTurn}
+              targetModeCardId={targetMode?.cardInstanceId ?? null}
+              onSelectCard={tapCard}
+              textContext={textContext}
+            />
+          </div>
+          <div className="flex shrink-0 flex-col items-center gap-2 pb-1">
+            <PileIndicator label="Atılanlar" icon="♻" tone="discard" count={game.discardPile.length} onOpen={() => setPile('discard')} hotkey="A" />
+            <PileIndicator label="Tükenenler" icon="✕" tone="exhaust" count={game.exhaustPile.length} onOpen={() => setPile('exhaust')} />
+          </div>
+        </div>
+      </footer>
+
+      <DeckViewer
+        open={pile !== null}
+        onClose={() => setPile(null)}
+        title={pile === 'draw' ? 'Çekme Destesi' : pile === 'discard' ? 'Atılanlar' : 'Tükenenler'}
+        defIds={(pile === 'draw' ? game.drawPile : pile === 'discard' ? game.discardPile : game.exhaustPile).map((c) => c.defId)}
+        sorted
+        emptyText="Bu yığında kart yok."
+      />
+    </motion.div>
   )
 }
 
-function summarizePhase(phase: GamePhase): string {
-  switch (phase) {
-    case 'playerTurn':
-      return 'Senin turun — kart oyna, enerjiyi kullan.'
-    case 'enemyTurn':
-      return 'Düşman turu.'
-    case 'victory':
-      return 'Kazandın.'
-    case 'defeat':
-      return 'Kaybettin.'
-  }
-}
+// ---------------------------------------------------------------------------
 
-function BackdropDimOverlay({ show }: { show: boolean }) {
+function TurnBanner({ game }: { game: GameState }) {
+  const [banner, setBanner] = useState<{ key: number; text: string; enemy: boolean } | null>(null)
+  const prev = useRef(game.phase)
+
+  useEffect(() => {
+    const from = prev.current
+    prev.current = game.phase
+    if (from === game.phase) return
+    if (game.phase === 'enemyTurn') setBanner({ key: Date.now(), text: 'Düşman Turu', enemy: true })
+    else if (game.phase === 'playerTurn' && from === 'enemyTurn') setBanner({ key: Date.now(), text: 'Senin Turun', enemy: false })
+    else return
+    const t = window.setTimeout(() => setBanner(null), 900)
+    return () => window.clearTimeout(t)
+  }, [game.phase])
+
   return (
-    <AnimatePresence initial={false}>
-      {show && (
+    <AnimatePresence>
+      {banner && (
         <motion.div
-          className="pointer-events-none absolute inset-0 z-30 rounded-xl bg-[#070605]/74 sm:rounded-xl"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        />
+          key={banner.key}
+          className="pointer-events-none absolute inset-x-0 top-[38%] z-40 flex justify-center"
+          initial={{ opacity: 0, scaleX: 0.3 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          exit={{ opacity: 0, scaleX: 1.2 }}
+          transition={{ duration: 0.28 }}
+        >
+          <div
+            className={cn(
+              'w-full max-w-xl border-y py-3 text-center font-display text-[2.1rem] font-semibold tracking-tight backdrop-blur-sm',
+              banner.enemy
+                ? 'border-[#7a3020]/70 bg-[linear-gradient(90deg,transparent,rgb(60_12_8/0.85),transparent)] text-[#ffb4a0]'
+                : 'border-[#8a7030]/70 bg-[linear-gradient(90deg,transparent,rgb(50_40_14/0.85),transparent)] text-[#f0d890]',
+            )}
+          >
+            {banner.text}
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   )
 }
 
-function OutcomeModal({
-  phase,
-  onRestart,
-  onGoLobby,
-  onContinueRun,
-  onRunDefeat,
+function OutcomeOverlay({
+  game,
+  runMode,
+  onContinue,
+  onDefeat,
+  onRetry,
+  onExit,
 }: {
-  phase: GamePhase
-  onRestart: () => void
-  onGoLobby: () => void
-  /** Koşu modunda galibiyette: ödül ekranına geç */
-  onContinueRun?: () => void
-  /** Koşu modunda yenilgide tetiklenir */
-  onRunDefeat?: () => void
+  game: GameState
+  runMode: boolean
+  onContinue: () => void
+  onDefeat: () => void
+  onRetry: () => void
+  onExit: () => void
 }) {
-  const open = phase === 'victory' || phase === 'defeat'
-
-  // Koşu yenilgisini dışarıya bildir
-  useEffect(() => {
-    if (phase === 'defeat' && onRunDefeat) {
-      const t = setTimeout(onRunDefeat, 1800)
-      return () => clearTimeout(t)
-    }
-  }, [phase, onRunDefeat])
+  const open = game.phase === 'victory' || game.phase === 'defeat'
+  const victory = game.phase === 'victory'
+  const { damageDealt, damageTaken, cardsPlayed } = game.stats
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[500] bg-[#060504]/92 backdrop-blur-md"
+          className="fixed inset-0 z-[500] flex items-center justify-center bg-[#060504]/85 px-4 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ delay: 0.35 }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="mx-auto mt-[12vh] max-w-md rounded-lg border border-[#3f3a34] bg-[#10100e]/98 p-8 text-center shadow-[0_32px_64px_-20px_rgb(0_0_0/0.85)] backdrop-blur-sm">
-            <h2 className="font-display text-[2.125rem] font-semibold tracking-tight text-[#f2eae1] sm:text-[2.5rem]">
-              {phase === 'victory' ? 'Zafer' : 'Yenilgi'}
+          <motion.div
+            initial={{ scale: 0.85, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            transition={{ delay: 0.4, type: 'spring', stiffness: 260, damping: 22 }}
+            className="w-full max-w-md rounded-2xl border border-[#3f3a34] bg-[#10100e]/98 p-8 text-center shadow-[0_32px_64px_-20px_rgb(0_0_0/0.85)]"
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.55, type: 'spring', stiffness: 300, damping: 14 }}
+              className="text-5xl"
+            >
+              {victory ? '⚔' : '💀'}
+            </motion.div>
+            <h2 className="mt-2 font-display text-[2.4rem] font-semibold tracking-tight text-[#f2eae1]">
+              {victory ? 'Zafer' : 'Yenilgi'}
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-[#959084] sm:text-[0.9425rem]">
-              {phase === 'victory'
-                ? 'Rakibi devirdin.'
-                : onRunDefeat
-                  ? 'Can sıfırlandı. Koşu sona eriyor…'
-                  : 'Can sıfırlandı. Tekrar dene.'}
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              {phase === 'victory' && onContinueRun ? (
-                <>
-                  <UIButton tone="primary" size="normal" onClick={onContinueRun}>
-                    Devam et →
-                  </UIButton>
-                  <UIButton tone="ghost" size="normal" onClick={() => onGoLobby()}>
-                    Menüye dön
-                  </UIButton>
-                </>
-              ) : phase === 'defeat' && onRunDefeat ? (
-                <UIButton tone="primary" size="normal" onClick={onRunDefeat}>
-                  Devam et →
+            <div className="mt-4 grid grid-cols-3 gap-2 border-y border-[#2a2520] py-3 text-[11px] text-[#7a7268]">
+              <Stat label="Verilen" value={damageDealt} tone="text-[#ff9a7a]" />
+              <Stat label="Alınan" value={damageTaken} tone="text-[#c4a054]" />
+              <Stat label="Kart" value={cardsPlayed} tone="text-[#c4beb4]" />
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              {victory && runMode && (
+                <UIButton tone="primary" size="normal" autoFocus onClick={onContinue}>
+                  Ödülleri Topla →
                 </UIButton>
-              ) : phase === 'victory' ? (
+              )}
+              {!victory && runMode && (
+                <UIButton tone="primary" size="normal" autoFocus onClick={onDefeat}>
+                  Koşu Sonu →
+                </UIButton>
+              )}
+              {!runMode && (
                 <>
-                  <UIButton tone="primary" size="normal" onClick={() => onRestart()}>
-                    Aynı savaşı tekrarla
+                  <UIButton tone="primary" size="normal" autoFocus onClick={onRetry}>
+                    {victory ? 'Tekrar Savaş' : 'Tekrar Dene'}
                   </UIButton>
-                  <UIButton tone="ghost" size="normal" onClick={() => onGoLobby()}>
-                    Menüye dön
-                  </UIButton>
-                </>
-              ) : (
-                <>
-                  <UIButton tone="primary" size="normal" onClick={() => onRestart()}>
-                    Tekrar dene
-                  </UIButton>
-                  <UIButton tone="ghost" size="normal" onClick={() => onGoLobby()}>
-                    Menüye dön
+                  <UIButton tone="ghost" size="normal" onClick={onExit}>
+                    Menüye Dön
                   </UIButton>
                 </>
               )}
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div>
+      <p className="uppercase tracking-[0.18em]">{label}</p>
+      <p className={cn('mt-0.5 font-display text-2xl font-semibold tabular-nums', tone)}>{value}</p>
+    </div>
   )
 }

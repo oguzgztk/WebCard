@@ -1,115 +1,218 @@
 import { describe, expect, it } from 'vitest'
 
+import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { describeCardPlain } from '@/game/cardText'
 import { HAND_DRAW_SIZE } from '@/game/constants'
-import { endPlayerTurn, playCard, startCombat } from '@/game/engine/combatEngine'
+import {
+  beginEnemyTurn,
+  endPlayerTurn,
+  finishEnemyTurn,
+  incomingDamage,
+  playCard,
+  resolveEnemyAction,
+  startCombat,
+} from '@/game/engine/combatEngine'
 import { instantiateDeck, shuffleDeck } from '@/game/engine/deckEngine'
-import type { CardInstance } from '@/game/types'
+import { calcDamage } from '@/game/engine/effectResolver'
+import { emptyStatuses } from '@/game/statuses'
+import type { CardInstance, GameState } from '@/game/types'
+
+const many = (id: string, n: number) => Array.from({ length: n }, () => id)
+
+function battleWith(deck: string[], enemies: string[] = ['jaw_worm'], seed = 7): GameState {
+  return startCombat({ seed, enemyDefIds: enemies, deckDefinitionIds: deck })
+}
+
+/** Eldeki ilk `defId` kartını oyna. */
+function play(state: GameState, defId: string, target?: string) {
+  const inst = state.hand.find((c) => c.defId === defId)
+  if (!inst) throw new Error(`${defId} elde yok`)
+  return playCard(state, inst.instanceId, target)
+}
 
 describe('deckEngine', () => {
   it('shuffle is deterministic for equal definition stacks', () => {
-    const a = instantiateDeck(['strike', 'strike', 'defend'])
-    const b = instantiateDeck(['strike', 'strike', 'defend'])
-
-    const orderA = defIds(shuffleDeck(a, 123456).shuffled).join('|')
-    const orderB = defIds(shuffleDeck(b, 123456).shuffled).join('|')
-
-    expect(orderA).toBe(orderB)
+    const ids = (cs: CardInstance[]) => cs.map((c) => c.defId).join('|')
+    const a = shuffleDeck(instantiateDeck(['strike', 'strike', 'defend', 'bash']), 123456).shuffled
+    const b = shuffleDeck(instantiateDeck(['strike', 'strike', 'defend', 'bash']), 123456).shuffled
+    expect(ids(a)).toBe(ids(b))
   })
 })
 
-describe('combatEngine', () => {
-  const strikeSpamDeck = (): ReadonlyArray<string> =>
-    Array.from({ length: 16 }, (): string => 'strike')
-
-  it('strike reduces hp', () => {
-    let battle = startCombat({
-      enemyDefId: 'jaw_worm',
-      seed: 7,
-      deckDefinitionIds: strikeSpamDeck(),
-    })
-
-    const payload = battle.hand.find((card) => card.defId === 'strike')
-    expect(payload).toBeTruthy()
-
-    const before = battle.enemies[0]?.hp ?? 0
-    battle = playCard(battle, payload!.instanceId)
-    const after = battle.enemies[0]?.hp ?? before
-
-    expect(after).toBeLessThan(before)
+describe('combatEngine — temel', () => {
+  it('strike reduces enemy hp by its damage', () => {
+    let s = battleWith(many('strike', 10))
+    const before = s.enemies[0]!.hp
+    s = play(s, 'strike')
+    expect(s.enemies[0]!.hp).toBe(before - 8)
+    expect(s.stats.damageDealt).toBe(8)
   })
 
-  it('cannot play strike with zero energy', () => {
-    let battle = startCombat({
-      enemyDefId: 'jaw_worm',
-      deckDefinitionIds: strikeSpamDeck(),
-      seed: 202,
-    })
-
-    const payload = battle.hand.find((card) => card.defId === 'strike')
-    expect(payload).toBeTruthy()
-
-    battle = {
-      ...battle,
-      player: {
-        ...battle.player,
-        energy: 0,
-      },
-    }
-
-    const beforeIds = snapshotHandIds(battle)
-    battle = playCard(battle, payload!.instanceId)
-    const afterIds = snapshotHandIds(battle)
-
-    expect(afterIds).toEqual(beforeIds)
-    expect(battle.player.energy).toBe(0)
+  it('cannot play a card without enough energy', () => {
+    let s = battleWith(many('strike', 10))
+    s = { ...s, player: { ...s.player, energy: 0 } }
+    const after = play(s, 'strike')
+    expect(after).toBe(s)
   })
 
+  it('multi-hit damage applies strength per hit', () => {
+    let s = battleWith(many('twin_strike', 10))
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, strength: 2 } } }
+    const before = s.enemies[0]!.hp
+    s = play(s, 'twin_strike')
+    expect(before - s.enemies[0]!.hp).toBe((5 + 2) * 2)
+  })
+
+  it('body slam deals damage equal to block', () => {
+    let s = battleWith([...many('defend', 5), ...many('body_slam', 5)])
+    s = play(s, 'defend')
+    const hp = s.enemies[0]!.hp
+    s = play(s, 'body_slam')
+    expect(hp - s.enemies[0]!.hp).toBe(6)
+  })
+
+  it('dexterity increases block from cards', () => {
+    let s = battleWith(many('defend', 10))
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, dexterity: 2 } } }
+    s = play(s, 'defend')
+    expect(s.player.block).toBe(8)
+  })
+
+  it('catalyst doubles poison', () => {
+    let s = battleWith([...many('envenom', 5), ...many('catalyst', 5)])
+    s = play(s, 'envenom')
+    s = play(s, 'catalyst')
+    expect(s.enemies[0]!.statuses.poison).toBe(8)
+  })
+
+  it('power cards leave combat after being played', () => {
+    let s = battleWith(many('rage_burst', 10))
+    s = play(s, 'rage_burst')
+    expect(s.player.statuses.strength).toBe(2)
+    expect(s.exhaustPile).toHaveLength(1)
+    expect(s.discardPile).toHaveLength(0)
+  })
+
+  it('allEnemies damage hits every enemy', () => {
+    let s = battleWith(many('thunderclap', 10), ['louse', 'louse'])
+    const hps = s.enemies.map((e) => e.hp)
+    s = play(s, 'thunderclap')
+    s.enemies.forEach((e, i) => expect(e.hp).toBe(hps[i]! - 4))
+    expect(s.enemies.every((e) => e.statuses.vulnerable === 1)).toBe(true)
+  })
+
+  it('single-target damage hits the chosen enemy', () => {
+    let s = battleWith(many('strike', 10), ['louse', 'louse'])
+    const [a, b] = s.enemies
+    s = play(s, 'strike', b!.uid)
+    expect(s.enemies.find((e) => e.uid === a!.uid)!.hp).toBe(a!.hp)
+    expect(s.enemies.find((e) => e.uid === b!.uid)!.hp).toBe(b!.hp - 8)
+  })
+
+  it('same enemy types get staggered intents', () => {
+    const s = battleWith(many('strike', 10), ['louse', 'louse'])
+    expect(s.enemies[0]!.intent).not.toEqual(s.enemies[1]!.intent)
+  })
+})
+
+describe('combatEngine — tur akışı ve durumlar', () => {
   it('enemy intent advances after resolving turn', () => {
-    let battle = startCombat({ enemyDefId: 'jaw_worm', seed: 11 })
-
-    const startIndex = battle.enemyIntentIndex
-    battle = endPlayerTurn(battle)
-    expect(battle.enemyIntentIndex).toBe(startIndex + 1)
+    const s = battleWith(many('strike', 10))
+    expect(endPlayerTurn(s).enemyIntentIndex).toBe(s.enemyIntentIndex + 1)
   })
-})
 
-describe('combatEngine — durumlar ve keyword', () => {
+  it('stepwise turn equals one-shot turn', () => {
+    const s = battleWith(many('strike', 10), ['louse', 'bat'])
+    let step = beginEnemyTurn(s)
+    for (const e of step.enemies) step = resolveEnemyAction(step, e.uid)
+    step = finishEnemyTurn(step)
+    const once = endPlayerTurn(s)
+    expect(step.player.hp).toBe(once.player.hp)
+    expect(step.enemies.map((e) => e.intent)).toEqual(once.enemies.map((e) => e.intent))
+  })
+
+  it('weak applied by an enemy lasts through the player turns it promises', () => {
+    let s = battleWith(many('strike', 10), ['louse'])
+    // Asalak: 0=saldırı, 1=zayıf(1)
+    s = endPlayerTurn(s)
+    expect(s.enemies[0]!.intent.kind).toBe('apply_player_weak')
+    s = endPlayerTurn(s)
+    expect(s.player.statuses.weak).toBe(1) // oyuncu turunda aktif
+    s = endPlayerTurn(s)
+    expect(s.player.statuses.weak).toBe(0)
+  })
+
+  it('vulnerable applied by the player persists into the next player turn', () => {
+    let s = battleWith(many('bash', 10))
+    s = play(s, 'bash') // 2 Savunmasız
+    s = endPlayerTurn(s)
+    expect(s.enemies[0]!.statuses.vulnerable).toBe(1)
+  })
+
   it('poison killing the last enemy ends combat in victory', () => {
-    let battle = startCombat({ enemyDefId: 'louse', seed: 5, deckDefinitionIds: ['defend', 'defend', 'defend', 'defend', 'defend'] })
-    battle = {
-      ...battle,
-      enemies: battle.enemies.map((e) => ({ ...e, hp: 3, block: 0, statuses: { ...e.statuses, poison: 5 } })),
-    }
-    battle = endPlayerTurn(battle)
-    expect(battle.phase).toBe('victory')
-    expect(battle.enemies).toHaveLength(0)
+    let s = battleWith(many('defend', 5), ['louse'])
+    s = { ...s, enemies: s.enemies.map((e) => ({ ...e, hp: 3, block: 10, statuses: { ...e.statuses, poison: 5 } })) }
+    s = endPlayerTurn(s)
+    expect(s.phase).toBe('victory')
+    expect(s.enemies).toHaveLength(0)
+  })
+
+  it('thorns damage attackers', () => {
+    let s = battleWith(many('defend', 10), ['louse'])
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, thorns: 3 } } }
+    const hp = s.enemies[0]!.hp
+    s = endPlayerTurn(s) // asalak saldırır
+    expect(s.enemies[0]!.hp).toBe(hp - 3)
+  })
+
+  it('metallicize grants block before enemies act', () => {
+    let s = battleWith(many('strike', 10), ['louse'])
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, metallicize: 6 } } }
+    const hp = s.player.hp
+    s = endPlayerTurn(s) // asalak 6 vurur
+    expect(s.player.hp).toBe(hp)
+  })
+
+  it('incoming damage preview accounts for vulnerable', () => {
+    let s = battleWith(many('strike', 10), ['jaw_worm'])
+    expect(incomingDamage(s)).toBe(11)
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, vulnerable: 1 } } }
+    expect(incomingDamage(s)).toBe(16)
   })
 
   it('innate cards start in hand without exceeding the draw size', () => {
-    const deck = ['war_cry', 'war_cry', ...Array.from({ length: 10 }, () => 'strike')]
     for (const seed of [1, 2, 3, 99, 1234]) {
-      const battle = startCombat({ enemyDefId: 'jaw_worm', seed, deckDefinitionIds: deck })
-      expect(battle.hand).toHaveLength(HAND_DRAW_SIZE)
-      expect(battle.hand.filter((c) => c.defId === 'war_cry')).toHaveLength(2)
+      const s = battleWith(['war_cry', 'war_cry', ...many('strike', 10)], ['jaw_worm'], seed)
+      expect(s.hand).toHaveLength(HAND_DRAW_SIZE)
+      expect(s.hand.filter((c) => c.defId === 'war_cry')).toHaveLength(2)
     }
   })
 
-  it('bag_of_prep draws two extra cards from the draw pile', () => {
-    const battle = startCombat({
-      enemyDefId: 'jaw_worm',
-      seed: 3,
-      deckDefinitionIds: Array.from({ length: 12 }, () => 'strike'),
-      relicIds: ['bag_of_prep'],
-    })
-    expect(battle.hand).toHaveLength(HAND_DRAW_SIZE + 2)
-    expect(battle.drawPile).toHaveLength(12 - HAND_DRAW_SIZE - 2)
+  it('bag_of_prep draws two extra cards', () => {
+    const s = startCombat({ seed: 3, enemyDefIds: ['jaw_worm'], deckDefinitionIds: many('strike', 12), relicIds: ['bag_of_prep'] })
+    expect(s.hand).toHaveLength(HAND_DRAW_SIZE + 2)
   })
 })
 
-function defIds(entries: readonly CardInstance[]) {
-  return entries.map((piece) => piece.defId)
-}
+describe('cardText', () => {
+  it('generates descriptions from effects', () => {
+    expect(describeCardPlain(CARD_DEFINITIONS_MAP.strike!)).toBe('8 hasar ver.')
+    expect(describeCardPlain(CARD_DEFINITIONS_MAP['twin_strike+']!)).toBe('2 kez 7 hasar ver.')
+    expect(describeCardPlain(CARD_DEFINITIONS_MAP.war_cry!)).toBe('1 kart çek. İçgüdü. Tüket.')
+  })
 
-function snapshotHandIds(state: ReturnType<typeof startCombat>) {
-  return state.hand.map((piece) => piece.instanceId).join(':')
-}
+  it('every upgraded card differs from its base', () => {
+    for (const [id, def] of Object.entries(CARD_DEFINITIONS_MAP)) {
+      if (!def.isUpgraded) continue
+      const base = CARD_DEFINITIONS_MAP[id.slice(0, -1)]!
+      const changed = base.cost !== def.cost || describeCardPlain(base) !== describeCardPlain(def)
+      expect(changed, `${id} yükseltmesi hiçbir şey değiştirmiyor`).toBe(true)
+    }
+  })
+
+  it('calcDamage applies strength, weak, vulnerable in order', () => {
+    const atk = { ...emptyStatuses(), strength: 2, weak: 1 }
+    const def = { ...emptyStatuses(), vulnerable: 1 }
+    expect(calcDamage(10, atk, def)).toBe(Math.floor(Math.floor(12 * 0.75) * 1.5))
+  })
+})

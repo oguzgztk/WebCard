@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-import type { RelicDefinition } from '@/game/relics'
+import { RELIC_MAP, type RelicDefinition } from '@/game/relics'
 import { cn } from '@/lib/cn'
 
 type Props = Readonly<{
@@ -70,28 +70,20 @@ export function RelicCard({ relic, selectable = false, onSelect }: Props) {
 }
 
 /** Aktif relic'leri küçük rozet olarak göster (savaş header / harita). */
-export function RelicBadgeRow({
-  relicIds,
-  relicMap,
-}: Readonly<{
-  relicIds: ReadonlyArray<string>
-  relicMap: Record<string, RelicDefinition>
-}>) {
+export function RelicBadgeRow({ relicIds }: Readonly<{ relicIds: ReadonlyArray<string> }>) {
   if (relicIds.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1">
       {relicIds.map((id) => {
-        const def = relicMap[id]
+        const def = RELIC_MAP[id]
         if (!def) return null
         return (
           <span
             key={id}
             title={`${def.name}: ${def.description}`}
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full border text-base',
-              'border-[#3f3830]/80 bg-black/50',
-            )}
+            tabIndex={0}
+            className="flex h-7 w-7 cursor-help items-center justify-center rounded-full border border-[#3f3830]/80 bg-black/50 text-[15px] transition hover:scale-110 hover:border-[#8a7030]"
           >
             {def.icon}
           </span>

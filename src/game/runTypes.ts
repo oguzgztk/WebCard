@@ -1,17 +1,26 @@
 /** Koşu (run) sistemi — `GameState` tek savaşı temsil eder; `RunState` tüm koşuyu. */
 
-export type MapNodeKind = 'combat' | 'elite' | 'rest' | 'boss' | 'shop' | 'event'
+export type MapNodeKind = 'combat' | 'elite' | 'rest' | 'boss' | 'shop' | 'event' | 'treasure'
 
 export interface MapNode {
   id: string
+  /** 0'dan başlayan kat. */
+  floor: number
+  /** Kat içindeki sütun (0..MAP_LANES-1) — çizim ve kesişmesiz bağlantı için. */
+  lane: number
   kind: MapNodeKind
-  /** Savaş/elite/boss düğümleri için düşman tanım ID'si. */
-  enemyDefId: string
+  /** Savaş/elit/boss düğümleri için düşman tanım ID'leri. */
+  enemyDefIds: string[]
+  /** Düşman can çarpanı (kat ilerledikçe artar). */
+  enemyHpScale: number
   /** Olay düğümü için olay tanım ID'si. */
   eventId?: string
-  /** Bu düğüm savaşı için kullanılacak deterministik tohum. */
+  /** Bir üst kattaki bağlı düğümler. */
+  next: string[]
+  /** Bu düğüm için deterministik tohum (savaş karıştırma, ödüller). */
   seed: number
-  completed: boolean
+  /** Oyuncu bu düğümden geçti mi. */
+  visited: boolean
 }
 
 export type RunPhase =
@@ -22,14 +31,39 @@ export type RunPhase =
   | 'rest'
   | 'shop'
   | 'event'
+  | 'treasure'
   | 'run_victory'
   | 'run_defeat'
 
+export interface ShopOffer {
+  defId: string
+  price: number
+  /** İndirimli teklif. */
+  onSale?: boolean
+}
+
+export interface RunStats {
+  floorsCleared: number
+  enemiesKilled: number
+  elitesKilled: number
+  damageDealt: number
+  damageTaken: number
+  cardsPlayed: number
+  goldEarned: number
+}
+
+export type Difficulty = 'normal' | 'hard'
+
 export interface RunState {
+  /** Kayıt şeması sürümü — uyumsuz eski kayıtlar yüklenmez. */
+  version: 2
   phase: RunPhase
+  difficulty: Difficulty
   /** Seçilen karakter ID'si. */
   characterId: string
-  /** Harita/ödül RNG için ana tohum; her kullanımda ilerler. */
+  /** Koşunun ana tohumu (paylaşılabilir). */
+  masterSeed: number
+  /** Ödül RNG'si; her kullanımda ilerler. */
   rngSeed: number
 
   /** Savaşlar arası taşınan oyuncu canı. */
@@ -38,38 +72,32 @@ export interface RunState {
 
   /** Güncel deste tanım ID listesi — ödüllerle büyür. */
   deckDefIds: string[]
-
-  /** Birikmiş altın. */
   gold: number
-
-  nodes: MapNode[]
-  /** nodes[] içindeki aktif düğüm indeksi. */
-  currentNodeIndex: number
-
-  /**
-   * Ödül ekranında sunulan 3 kart seçeneği.
-   * Ödül alındıktan / atlandıktan sonra boşalır.
-   */
-  pendingRewardCards: string[]
-
-  /** Bu düğümden kazanılan altın (ödül ekranında gösterilir). */
-  pendingRewardGold: number
-
-  /**
-   * Mağaza envanteri — shop düğümüne girildiğinde oluşturulur,
-   * çıkınca temizlenir. Satın alınanlar buradan çıkarılır.
-   */
-  shopInventory: string[]
-
-  /** Mağazada kart çıkarma fiyatı (sabit). */
-  shopRemovalPrice: number
-
   /** Sahip olunan relic ID listesi — tüm run boyunca taşınır. */
   relics: string[]
 
-  /** Relic ödülü ekranında sunulan seçenekler. */
+  nodes: MapNode[]
+  /** Şu an bulunulan düğüm; `null` = haritanın başı (ilk kat seçilecek). */
+  currentNodeId: string | null
+
+  /** Ödül ekranında sunulan kart seçenekleri. */
+  pendingRewardCards: string[]
+  /** Bu düğümden kazanılan altın (ödül ekranında gösterilir). */
+  pendingRewardGold: number
+  /** Relic ödülü / hazine ekranında sunulan seçenekler. */
   pendingRelicReward: string[]
+
+  /** Mağaza: kart teklifleri (satın alınanlar çıkar). */
+  shopCards: ShopOffer[]
+  /** Mağaza: satılık relic (yoksa `null`). */
+  shopRelic: ShopOffer | null
+  /** Kart çıkarma fiyatı — her kullanımda artar. */
+  shopRemovalPrice: number
+  /** Bu mağaza ziyaretinde kart çıkarıldı mı (ziyaret başına bir). */
+  shopRemovalUsed: boolean
 
   /** Aktif event ID'si (event fazındayken). */
   activeEventId?: string
+
+  stats: RunStats
 }

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { RunHud } from '@/components/screens/RunHud'
 import { UIButton } from '@/components/ui/UIButton'
 import { EVENT_MAP } from '@/data/events'
 import type { EventEffect, EventOutcome } from '@/data/events'
 import { eventOutcomeGoldCost } from '@/game/runEngine'
+import { sfx } from '@/lib/audio'
 import type { RunState } from '@/game/runTypes'
 
 interface EventScreenProps {
@@ -20,6 +22,13 @@ export function EventScreen({ run, onChoose }: EventScreenProps) {
   if (!event) return null
 
   function handleChoice(outcome: EventOutcome) {
+    const kinds = outcome.effects.map((e) => e.kind)
+    if (kinds.includes('gainRelic')) sfx.relic()
+    else if (kinds.includes('upgradeRandom')) sfx.upgrade()
+    else if (kinds.includes('loseHp')) sfx.playerHurt(8)
+    else if (kinds.includes('gainGold')) sfx.coin()
+    else if (kinds.includes('gainHp') || kinds.includes('gainMaxHp')) sfx.heal()
+    else sfx.click()
     setResult(outcome.resultText)
     setPendingOutcome(outcome)
   }
@@ -29,17 +38,24 @@ export function EventScreen({ run, onChoose }: EventScreenProps) {
   }
 
   const effectIcon: Record<EventEffect['kind'], string> = {
-    gainGold: '🪙',
+    gainGold: '💰',
     loseGold: '💸',
     gainHp: '💚',
     loseHp: '🩸',
     gainCard: '🃏',
+    gainRandomCard: '🃏',
+    gainMaxHp: '❤',
+    gainRelic: '🏺',
+    upgradeRandom: '⚒',
+    removeStarter: '🗑',
   }
   const outcomeIcons = (outcome: EventOutcome) =>
     outcome.effects.length === 0 ? '—' : outcome.effects.map((e) => effectIcon[e.kind]).join('')
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-start overflow-hidden bg-[#080807] px-4 py-10">
+    <div className="flex min-h-dvh flex-col items-center justify-start overflow-hidden bg-[#080807]">
+      <RunHud run={run} />
+      <div className="flex w-full flex-1 flex-col items-center px-4 py-10">
       {/* Ambiyans ışığı */}
       <div
         aria-hidden
@@ -124,6 +140,7 @@ export function EventScreen({ run, onChoose }: EventScreenProps) {
           )}
         </AnimatePresence>
       </motion.div>
+      </div>
     </div>
   )
 }

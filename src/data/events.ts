@@ -11,6 +11,15 @@ export type EventEffect =
   | { kind: 'gainHp'; amount: number }
   | { kind: 'loseHp'; amount: number }
   | { kind: 'gainCard'; cardId: string }
+  | { kind: 'gainMaxHp'; amount: number }
+  /** Havuzdan rastgele bir relic. */
+  | { kind: 'gainRelic' }
+  /** Destedeki rastgele `amount` kartı yükselt. */
+  | { kind: 'upgradeRandom'; amount: number }
+  /** Rastgele `amount` başlangıç kartını desteden çıkar. */
+  | { kind: 'removeStarter'; amount: number }
+  /** Karakter havuzundan rastgele kart (isteğe bağlı nadirlik). */
+  | { kind: 'gainRandomCard'; rarity?: 'common' | 'uncommon' | 'rare' }
 
 export interface EventOutcome {
   /** Sırayla uygulanır; boş dizi = hiçbir şey olmaz. */
@@ -215,6 +224,78 @@ export const ALL_EVENTS: EventDefinition[] = [
         label: 'Göz sembolüne dokun',
         description: '10 can kaybet ve 50 altın kazan.',
         outcome: { effects: [{ kind: 'loseHp', amount: 10 }, { kind: 'gainGold', amount: 50 }], resultText: 'Kısa bir vizyon gördün; çok ağır geldi. Ama değerdi.' },
+      },
+    ],
+  },
+  {
+    id: 'forgotten_forge',
+    title: 'Unutulmuş Demirhane',
+    lore:
+      'Sönmüş bir ocak, paslı bir örs. Körük hâlâ çalışıyor gibi. Biraz kan ve ter, belki eski ustanın sırrını verir.',
+    choices: [
+      {
+        label: 'Dövmeye koyul',
+        description: 'Rastgele 2 kartını yükselt.',
+        outcome: { effects: [{ kind: 'upgradeRandom', amount: 2 }], resultText: 'Çekiç ritmi tuttu; silahların keskinleşti.' },
+      },
+      {
+        label: 'Kendini dök',
+        description: '8 can kaybet; Maksimum Canın 6 artsın.',
+        outcome: { effects: [{ kind: 'loseHp', amount: 8 }, { kind: 'gainMaxHp', amount: 6 }], resultText: 'Ateşe dayandın. Derin daha sert.' },
+      },
+      {
+        label: 'Geç',
+        description: 'Hiçbir şey olmaz.',
+        outcome: { effects: [], resultText: 'Ocağa son bir bakış atıp yürüdün.' },
+      },
+    ],
+  },
+  {
+    id: 'hermit',
+    title: 'Münzevi',
+    lore:
+      'Mağaranın dibinde gözleri bembeyaz bir münzevi. "Yükünü hafiflet, yolcu. Gereksiz olanı bırak."',
+    choices: [
+      {
+        label: 'Arın',
+        description: '2 başlangıç kartını desteden çıkar.',
+        outcome: { effects: [{ kind: 'removeStarter', amount: 2 }], resultText: 'Eski alışkanlıkları ardında bıraktın. Deste hafifledi.' },
+      },
+      {
+        label: 'Bilgelik iste',
+        description: '30 altın ver; rastgele nadir bir kart kazan.',
+        outcome: {
+          effects: [{ kind: 'loseGold', amount: 30 }, { kind: 'gainRandomCard', rarity: 'uncommon' }],
+          resultText: 'Münzevi bir şey fısıldadı; yeni bir hamle zihnine kazındı.',
+        },
+      },
+      {
+        label: 'Saygıyla ayrıl',
+        description: 'Hiçbir şey olmaz.',
+        outcome: { effects: [], resultText: 'Başını eğdin ve mağaradan çıktın.' },
+      },
+    ],
+  },
+  {
+    id: 'treasure_goblin',
+    title: 'Hazine Cücesi',
+    lore:
+      'Sırtında kocaman bir çuval taşıyan bir cüce seni görünce donakaldı. Çuvaldan bir şey parlıyor.',
+    choices: [
+      {
+        label: 'Çuvalı kap',
+        description: '12 can kaybet; rastgele bir yadigâr kazan.',
+        outcome: { effects: [{ kind: 'loseHp', amount: 12 }, { kind: 'gainRelic' }], resultText: 'Cüce ısırdı ama çuvaldaki yadigâr artık senin.' },
+      },
+      {
+        label: 'Pazarlık et',
+        description: '35 altın kazan.',
+        outcome: { effects: [{ kind: 'gainGold', amount: 35 }], resultText: 'Cüce homurdanarak birkaç sikke fırlattı.' },
+      },
+      {
+        label: 'Bırak gitsin',
+        description: 'Hiçbir şey olmaz.',
+        outcome: { effects: [], resultText: 'Cüce gölgelere karıştı.' },
       },
     ],
   },

@@ -1,286 +1,125 @@
 import { create } from 'zustand'
-import { immer } from 'zustand/middleware/immer'
 
 import type { EventOutcome } from '@/data/events'
-import { CARD_DEFINITIONS_MAP } from '@/data/cards'
-import { upgradeCard } from '@/game/cardUpgrades'
 import {
   applyRelicReward,
   applyRestHeal,
+  applyRestUpgrade,
   applyRewardCard,
   buyShopCard,
-  enterCombatNode,
-  enterEventNode,
-  enterShop,
+  buyShopRelic,
   generateRun,
-  getCardShopPrice,
   leaveShop,
   removeShopCard,
-  resolveBossVictory,
+  resolveCombatDefeat,
+  resolveCombatVictory,
   resolveEventChoice,
-  resolveNodeReward,
-  resolveRestNode,
+  selectNode,
   skipRest,
 } from '@/game/runEngine'
-import type { RunState } from '@/game/runTypes'
-import { clearCombatSave } from '@/game/store/combatSave'
-import { sanitizeSeed } from '@/lib/rng'
-
-const SAVE_KEY = 'webcard_run_v1'
-
-function saveRun(run: RunState | null) {
-  try {
-    if (run) {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(run))
-    } else {
-      localStorage.removeItem(SAVE_KEY)
-    }
-  } catch { /* storage dolu vb. */ }
-}
-
-function loadSavedRun(): RunState | null {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY)
-    return raw ? (JSON.parse(raw) as RunState) : null
-  } catch {
-    return null
-  }
-}
+import type { Difficulty, RunState } from '@/game/runTypes'
+import {
+  clearCombatSave,
+  clearLegacySaves,
+  hasSavedRun,
+  loadRun,
+  saveRun,
+  updateMeta,
+} from '@/game/store/persistence'
+import type { CombatStats } from '@/game/types'
 
 type RunStore = {
   run: RunState | null
-
-  /** Kaydedilmiş koşu varsa döndürür (Continue butonu için). */
   hasSavedRun: () => boolean
-
-  /** Kaydedilmiş koşuyu yükle. */
   loadRun: () => void
-
-  /** Yeni koşu başlat. */
-  startRun: (masterSeed?: number, characterId?: string) => void
-
-  /** Savaş/elite/boss düğümü tamamlandı; ödül hesapla. */
-  completeCombatNode: (playerHpAfterCombat: number) => void
-
-  /** Boss düğümü tamamlandı; koşu galibiyeti. */
-  completeBossNode: (playerHpAfterCombat: number) => void
-
-  /** Haritada savaş/elit/boss düğümü seçildi. */
-  enterCombatNodeAction: () => void
-
-  /** Oyuncu mola düğümüne girdi. */
-  enterRestNode: () => void
-
-  /** Mola ekranında iyileş seçeneği. */
+  startRun: (masterSeed: number, characterId: string, difficulty?: Difficulty) => void
+  selectNode: (nodeId: string) => void
+  completeCombat: (playerHp: number, stats?: Partial<CombatStats>) => void
+  defeatRun: (stats?: Partial<CombatStats>) => void
   chooseHeal: () => void
-
-  /** Mola ekranında pas geç. */
   chooseSkipRest: () => void
-
-  /** Ödül ekranından kart seç (null = atla). */
-  selectRewardCard: (defId: string | null) => void
-
-  /** Relic ödülü ekranından relic seç (null = atla). */
-  selectRelicReward: (relicId: string | null) => void
-
-  /** Yenilgi (savaşta can bitince). */
-  defeatRun: () => void
-
-  /**
-   * Molada kart yükseltme: desteki `defId` olan kartı `defId+` sürümüyle değiştirir.
-   * Yükseltilebilir değilse işlem yapmaz.
-   */
   upgradeCardInDeck: (defId: string) => void
-
-  /** Mağaza düğümüne gir. */
-  enterShopNode: () => void
-  /** Mağazadan kart satın al. */
-  buyCardFromShop: (defId: string) => void
-  /** Desteden kart çıkar (ücretli). */
-  removeCardFromDeck: (defId: string) => void
-  /** Mağazadan çık ve haritaya dön. */
-  leaveShopNode: () => void
-
-  /** Event düğümüne gir. */
-  enterEventNodeAction: () => void
-  /** Event seçeneği seç. */
-  resolveEventChoiceAction: (outcome: EventOutcome) => void
-
-  /** Ana menüye dön; koşu (ve süren savaş) kayıtlı kalır, "Devam et" ile sürer. */
+  selectRewardCard: (defId: string | null) => void
+  /** Relic ödülü veya hazine seçimi (null = atla). */
+  selectRelicReward: (relicId: string | null) => void
+  buyCard: (defId: string) => void
+  buyRelic: () => void
+  removeCard: (defId: string) => void
+  leaveShop: () => void
+  resolveEvent: (outcome: EventOutcome) => void
+  /** Ana menüye dön; koşu (ve süren savaş) kayıtlı kalır. */
   exitToMenu: () => void
-
   /** Koşuyu tamamen terk et (kayıt silinir). */
   abandonRun: () => void
 }
 
-export const useRunStore = create(
-  immer<RunStore>((set, get) => ({
-    run: null,
+/** Saf `runEngine` dönüşümünü mevcut koşuya uygular. */
+function apply(set: (fn: (s: RunStore) => Partial<RunStore>) => void, fn: (run: RunState) => RunState) {
+  set((s) => (s.run ? { run: fn(s.run) } : {}))
+}
 
-    hasSavedRun() {
-      try { return Boolean(localStorage.getItem(SAVE_KEY)) } catch { return false }
-    },
+export const useRunStore = create<RunStore>((set) => ({
+  run: null,
 
-    loadRun() {
-      const saved = loadSavedRun()
-      if (saved) set((draft) => { draft.run = saved })
-    },
+  hasSavedRun,
 
-    startRun(masterSeed, characterId = 'demirci') {
-      const seed = masterSeed !== undefined ? masterSeed : Date.now()
-      const newRun = generateRun(sanitizeSeed(seed), characterId)
-      saveRun(newRun)
-      set((draft) => { draft.run = newRun })
-    },
+  loadRun() {
+    const saved = loadRun()
+    if (saved) set({ run: saved })
+  },
 
-    completeCombatNode(playerHpAfterCombat) {
-      const run = get().run
-      if (!run) return
-      const node = run.nodes[run.currentNodeIndex]
-      if (!node || node.kind === 'boss') return
-      set((draft) => {
-        draft.run = resolveNodeReward(run, playerHpAfterCombat)
-      })
-    },
+  startRun(masterSeed, characterId, difficulty = 'normal') {
+    clearLegacySaves()
+    clearCombatSave()
+    updateMeta((m) => ({ ...m, runsStarted: m.runsStarted + 1 }))
+    set({ run: generateRun(masterSeed, characterId, difficulty) })
+  },
 
-    completeBossNode(playerHpAfterCombat) {
-      const run = get().run
-      if (!run) return
-      set((draft) => {
-        draft.run = resolveBossVictory(run, playerHpAfterCombat)
-      })
-    },
+  selectNode: (nodeId) => apply(set, (r) => selectNode(r, nodeId)),
+  completeCombat: (hp, stats) => apply(set, (r) => resolveCombatVictory(r, hp, stats)),
+  defeatRun: (stats) => apply(set, (r) => resolveCombatDefeat(r, stats)),
+  chooseHeal: () => apply(set, applyRestHeal),
+  chooseSkipRest: () => apply(set, skipRest),
+  upgradeCardInDeck: (defId) => apply(set, (r) => applyRestUpgrade(r, defId)),
+  selectRewardCard: (defId) => apply(set, (r) => applyRewardCard(r, defId)),
+  selectRelicReward: (relicId) => apply(set, (r) => applyRelicReward(r, relicId)),
+  buyCard: (defId) => apply(set, (r) => buyShopCard(r, defId)),
+  buyRelic: () => apply(set, buyShopRelic),
+  removeCard: (defId) => apply(set, (r) => removeShopCard(r, defId)),
+  leaveShop: () => apply(set, leaveShop),
+  resolveEvent: (outcome) => apply(set, (r) => resolveEventChoice(r, outcome)),
 
-    enterCombatNodeAction() {
-      const run = get().run
-      if (!run) return
-      set((draft) => { draft.run = enterCombatNode(run) })
-    },
+  exitToMenu() {
+    set({ run: null })
+  },
 
-    enterRestNode() {
-      const run = get().run
-      if (!run) return
-      set((draft) => {
-        draft.run = resolveRestNode(run)
-      })
-    },
+  abandonRun() {
+    saveRun(null)
+    clearCombatSave()
+    set({ run: null })
+  },
+}))
 
-    chooseHeal() {
-      const run = get().run
-      if (!run) return
-      set((draft) => {
-        draft.run = applyRestHeal(run)
-      })
-    },
-
-    chooseSkipRest() {
-      const run = get().run
-      if (!run) return
-      set((draft) => {
-        draft.run = skipRest(run)
-      })
-    },
-
-    selectRewardCard(defId) {
-      const run = get().run
-      if (!run) return
-      set((draft) => {
-        draft.run = applyRewardCard(run, defId)
-      })
-    },
-
-    selectRelicReward(relicId) {
-      const run = get().run
-      if (!run) return
-      set((draft) => {
-        draft.run = applyRelicReward(run, relicId)
-      })
-    },
-
-    defeatRun() {
-      set((draft) => {
-        if (draft.run) draft.run.phase = 'run_defeat'
-      })
-    },
-
-    enterShopNode() {
-      const run = get().run
-      if (!run) return
-      set((draft) => { draft.run = enterShop(run) })
-    },
-
-    buyCardFromShop(defId) {
-      const run = get().run
-      if (!run) return
-      const price = getCardShopPrice(defId)
-      set((draft) => { draft.run = buyShopCard(run, defId, price) })
-    },
-
-    removeCardFromDeck(defId) {
-      const run = get().run
-      if (!run) return
-      set((draft) => { draft.run = removeShopCard(run, defId) })
-    },
-
-    leaveShopNode() {
-      const run = get().run
-      if (!run) return
-      set((draft) => { draft.run = leaveShop(run) })
-    },
-
-    upgradeCardInDeck(defId) {
-      const run = get().run
-      if (!run) return
-      const baseDef = CARD_DEFINITIONS_MAP[defId]
-      if (!baseDef || baseDef.isUpgraded) return
-      const upgradedDef = upgradeCard(baseDef)
-      if (!upgradedDef) return
-
-      // Destede ilk eşleşen kartı yükselt
-      const idx = run.deckDefIds.indexOf(defId)
-      if (idx === -1) return
-
-      set((draft) => {
-        if (!draft.run) return
-        const newDeck = [...draft.run.deckDefIds]
-        newDeck[idx] = upgradedDef.id
-        draft.run.deckDefIds = newDeck
-        draft.run.phase = 'map'
-        draft.run.currentNodeIndex = run.currentNodeIndex + 1
-      })
-    },
-
-    enterEventNodeAction() {
-      const run = get().run
-      if (!run) return
-      set((draft) => { draft.run = enterEventNode(run) })
-    },
-
-    resolveEventChoiceAction(outcome) {
-      const run = get().run
-      if (!run) return
-      set((draft) => { draft.run = resolveEventChoice(run, outcome) })
-    },
-
-    exitToMenu() {
-      // Kayda dokunmadan bellekteki koşuyu bırak
-      set((draft) => { draft.run = null })
-    },
-
-    abandonRun() {
-      saveRun(null)
-      clearCombatSave()
-      set((draft) => { draft.run = null })
-    },
-  })),
-)
-
-// Her run değişikliğinde otomatik kayıt
-// Her run değişikliğinde otomatik kayıt. `run === null` kaydı silmez:
-// menüye dönüş (exitToMenu) kaydı korur, silme yalnızca abandonRun'da.
+// Her run değişikliğinde otomatik kayıt. `run === null` kaydı silmez (menüye dönüş);
+// silme yalnızca abandonRun'da. Koşu bitince meta istatistikleri güncellenir.
 useRunStore.subscribe((state, prev) => {
-  if (state.run === prev.run || !state.run) return
-  saveRun(state.run)
-  // Savaş fazı dışına çıkıldıysa (ödül, yenilgi, harita…) savaş ara kaydı geçersiz
-  if (state.run.phase !== 'combat') clearCombatSave()
+  const run = state.run
+  if (run === prev.run || !run) return
+  saveRun(run)
+  if (run.phase !== 'combat') clearCombatSave()
+
+  const ended = run.phase === 'run_victory' || run.phase === 'run_defeat'
+  const wasEnded = prev.run?.phase === 'run_victory' || prev.run?.phase === 'run_defeat'
+  if (ended && !wasEnded) {
+    const won = run.phase === 'run_victory'
+    updateMeta((m) => ({
+      ...m,
+      wins: m.wins + (won ? 1 : 0),
+      hardWins: m.hardWins + (won && run.difficulty === 'hard' ? 1 : 0),
+      bestFloor: Math.max(m.bestFloor, run.stats.floorsCleared),
+      winsByCharacter: won
+        ? { ...m.winsByCharacter, [run.characterId]: (m.winsByCharacter[run.characterId] ?? 0) + 1 }
+        : m.winsByCharacter,
+    }))
+  }
 })

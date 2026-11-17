@@ -16,3 +16,4 @@ coverage
 
 .vite
 *.tsbuildinfo
+playtest-shots

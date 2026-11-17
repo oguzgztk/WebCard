@@ -1,28 +1,47 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-import { ALL_CHARACTERS } from '@/data/characters'
+import { SettingsButton } from '@/components/ui/SettingsButton'
+import { ALL_CHARACTERS, DEMIRCI, QUICK_BATTLE_DECK } from '@/data/characters'
+import { ENEMY_DEFINITIONS_MAP } from '@/data/enemies'
 import type { BattleChoice } from '@/game/battleChoice'
+import type { Difficulty } from '@/game/runTypes'
+import { loadMeta } from '@/game/store/persistence'
 import { getEnemyArtSrc } from '@/game/visuals'
+import { sfx } from '@/lib/audio'
+import { cn } from '@/lib/cn'
 
 type Props = Readonly<{
   onStartBattle: (choice: BattleChoice) => void
-  onStartRun: (characterId: string) => void
+  onStartRun: (characterId: string, difficulty: Difficulty) => void
   onContinueRun: () => void
   hasSavedRun: boolean
 }>
 
 type Preset = BattleChoice & { description: string }
 
+const quick = (seed: number, enemyDefIds: string[], label: string, tier?: BattleChoice['tier']): Preset => ({
+  seed,
+  enemyDefIds,
+  label,
+  tier,
+  deckDefinitionIds: QUICK_BATTLE_DECK,
+  playerMaxHp: DEMIRCI.maxHp,
+  characterId: DEMIRCI.id,
+  description: ENEMY_DEFINITIONS_MAP[enemyDefIds[0]!]?.blurb ?? '',
+})
+
 const PRESETS: readonly Preset[] = [
-  { seed: 4242,  enemyDefId: 'jaw_worm',   label: 'Çene Kurdu',     description: 'Derin toprak altından gelen, sürekli büyüyen bir tehdit.' },
-  { seed: 991,   enemyDefId: 'cultist',    label: 'Tarikat Üyesi',  description: 'Her turda güç toplayan, şiddetlenen bir fanatik.' },
-  { seed: 1337,  enemyDefId: 'louse',      label: 'Asalak',         description: 'Hızlı, iğneleyici, zayıflatıcı — düşük canı yanıltıcıdır.' },
-  { seed: 7777,  enemyDefId: 'fungibeast', label: 'Mantar Canavarı', description: 'Yavaş ama amansız — blok biriktirir, sonra ezer.' },
+  quick(4242, ['jaw_worm'], 'Çene Kurdu'),
+  quick(991, ['cultist'], 'Tarikatçı'),
+  quick(1337, ['louse', 'louse', 'louse'], 'Asalak Sürüsü'),
+  quick(7777, ['fungibeast'], 'Mantar Canavarı', 'elite'),
 ]
 
 export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSavedRun }: Props) {
   const [view, setView] = useState<'main' | 'character'>('main')
+  const [difficulty, setDifficulty] = useState<Difficulty>('normal')
+  const meta = useMemo(() => loadMeta(), [])
 
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-12 sm:px-6">
@@ -30,6 +49,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
       <div aria-hidden className="pointer-events-none absolute inset-x-[-30%] top-[-20%] h-[55vh] rounded-[100%] bg-[radial-gradient(ellipse_at_center,_rgb(90_68_44/0.28),_transparent_65%)]" />
       <div aria-hidden className="pointer-events-none absolute bottom-[-10%] left-[-10%] h-[40vh] w-[60vw] rounded-[100%] bg-[radial-gradient(ellipse_at_center,_rgb(60_42_28/0.18),_transparent_70%)]" />
 
+      <SettingsButton className="absolute right-4 top-4" />
       <div className="relative w-full max-w-xl">
         {/* Başlık */}
         <div className="mb-8 text-center">
@@ -38,6 +58,11 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
           <h1 className="font-display mt-3 text-[3rem] font-semibold tracking-[-0.02em] text-[#f2ebe3] drop-shadow-[0_2px_24px_rgb(0_0_0/0.55)] sm:text-[3.75rem]">
             Web Card
           </h1>
+          {meta.runsStarted > 0 && (
+            <p className="mt-2 text-[11px] tracking-wide text-[#6a6050]">
+              {meta.runsStarted} koşu · {meta.wins} zafer{meta.hardWins ? ` (${meta.hardWins} zor)` : ''} · en iyi kat {meta.bestFloor}
+            </p>
+          )}
         </div>
 
         <AnimatePresence mode="wait">
@@ -56,7 +81,10 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                   animate={{ opacity: 1, y: 0 }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={onContinueRun}
+                  onClick={() => {
+                    sfx.click()
+                    onContinueRun()
+                  }}
                   className="group relative w-full overflow-hidden rounded-2xl border border-[#3a6a3a]/70 bg-gradient-to-b from-[#0e1a0e]/90 to-black/90 px-6 py-4 text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.75)] transition-all hover:border-[#5a8a5a]/80"
                 >
                   <div className="flex items-center justify-between gap-4">
@@ -78,7 +106,10 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                 transition={{ delay: hasSavedRun ? 0.06 : 0 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setView('character')}
+                onClick={() => {
+                  sfx.click()
+                  setView('character')
+                }}
                 className="group relative w-full overflow-hidden rounded-2xl border border-[#6a5230]/70 bg-gradient-to-b from-[#1f1608]/90 to-black/90 px-6 py-5 text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.75),inset_0_1px_0_rgb(255_255_255/0.08)] transition-all hover:border-[#8a6c42]/80"
               >
                 <div className="flex items-center justify-between gap-4">
@@ -103,16 +134,19 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
               {/* Hızlı savaş kartları */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 {PRESETS.map((preset, i) => {
-                  const art = getEnemyArtSrc(preset.enemyDefId)
+                  const art = getEnemyArtSrc(preset.enemyDefIds[0]!)
                   return (
                     <motion.button
-                      key={preset.enemyDefId}
+                      key={preset.label}
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.07 }}
                       whileHover={{ y: -3 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => onStartBattle(preset)}
+                      onClick={() => {
+                        sfx.click()
+                        onStartBattle(preset)
+                      }}
                       className="group relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-[#3a342b]/80 bg-gradient-to-b from-[#181410]/90 to-black/90 shadow-[0_8px_32px_-10px_rgb(0_0_0/0.75)] transition-shadow hover:border-[#5a4c36]/70"
                     >
                       <div className="relative flex h-44 w-full items-end justify-center overflow-hidden bg-gradient-to-b from-[#151210] to-[#070605]">
@@ -146,6 +180,34 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                 <p className="text-[11px] uppercase tracking-[0.2em] text-[#7a6e57]">Karakterini seç</p>
               </div>
 
+              <div className="mx-auto flex rounded-lg border border-[#3a342b] bg-black/40 p-1" role="radiogroup" aria-label="Zorluk">
+                {(
+                  [
+                    ['normal', 'Normal', 'Dengeli bir yolculuk'],
+                    ['hard', 'Zor', 'Düşmanlar %15 daha dayanıklı'],
+                  ] as const
+                ).map(([value, label, hint]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={difficulty === value}
+                    title={hint}
+                    onClick={() => setDifficulty(value)}
+                    className={cn(
+                      'rounded-md px-4 py-1.5 text-[12px] font-semibold transition',
+                      difficulty === value
+                        ? value === 'hard'
+                          ? 'bg-[#5a1a12] text-[#ffb4a0]'
+                          : 'bg-[#3a2e18] text-[#f0d890]'
+                        : 'text-[#6a6258] hover:text-[#a89f92]',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 {ALL_CHARACTERS.map((char, i) => (
                   <motion.button
@@ -155,7 +217,10 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                     transition={{ delay: i * 0.1 }}
                     whileHover={{ y: -4, transition: { duration: 0.18 } }}
                     whileTap={{ scale: 0.97 }}
-                    onClick={() => onStartRun(char.id)}
+                    onClick={() => {
+                      sfx.turnStart()
+                      onStartRun(char.id, difficulty)
+                    }}
                     className="group relative flex flex-col overflow-hidden rounded-2xl border text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.8)] transition-all"
                     style={{ borderColor: `${char.accentColor}45` }}
                   >
@@ -197,6 +262,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                       <div className="mt-2.5 flex gap-3 text-[10px]" style={{ color: `${char.accentColor}cc` }}>
                         <span>❤ {char.maxHp} can</span>
                         <span>🃏 {char.starterDeckIds.length} kart</span>
+                        {(meta.winsByCharacter[char.id] ?? 0) > 0 && <span>🏆 {meta.winsByCharacter[char.id]}</span>}
                       </div>
                       <div
                         className="mt-3 flex items-center justify-end text-[11px] font-semibold uppercase tracking-wider transition-transform group-hover:translate-x-1"

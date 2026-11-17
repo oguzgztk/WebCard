@@ -1,5 +1,9 @@
-import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useLayoutEffect, useRef, useState } from 'react'
+
 import { CardInteractive } from '@/components/cards/CardInteractive'
+import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import type { CardTextContext } from '@/game/cardText'
 import type { CardInstance } from '@/game/types'
 import { cn } from '@/lib/cn'
 
@@ -9,70 +13,72 @@ type Props = Readonly<{
   phaseAllowsPlay: boolean
   targetModeCardId: string | null
   onSelectCard: (instanceId: string) => void
-  layout?: 'default' | 'compact'
+  textContext?: CardTextContext
 }>
 
-/** El destesini zarif yay efektiyle gösteriyoruz */
-export function Hand({
-  cards,
-  energy,
-  phaseAllowsPlay,
-  targetModeCardId,
-  onSelectCard,
-  layout = 'default',
-}: Props) {
-  const quantity = cards.length || 1
-  const center = (quantity - 1) / 2
-  const compact = layout === 'compact'
+/** Kart genişliği (rem → px, 9rem). */
+const CARD_W = 144
+
+function useWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [width, setWidth] = useState(0)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => setWidth(entry!.contentRect.width))
+    ro.observe(el)
+    setWidth(el.getBoundingClientRect().width)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, width] as const
+}
+
+/** El — yelpaze düzeni; kartlar kaba sığacak kadar üst üste biner, hover'da öne çıkar. */
+export function Hand({ cards, energy, phaseAllowsPlay, targetModeCardId, onSelectCard, textContext }: Props) {
+  const [ref, width] = useWidth<HTMLDivElement>()
+  const n = cards.length
+  const center = (n - 1) / 2
+  // Sığması için gereken üst üste binme (px); en az 10px nefes.
+  const overlap = n > 1 && width > 0 ? Math.max(-6, Math.min(CARD_W * 0.72, (n * CARD_W - width + 24) / (n - 1))) : -6
 
   return (
-    <div
-      className={cn(
-        'relative flex min-h-0 flex-nowrap items-end justify-center overflow-x-auto overflow-y-visible',
-        compact ? 'pt-3 pb-1' : 'pt-14',
-      )}
-    >
-      <div
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute inset-x-2 rounded-[28px] bg-gradient-to-b from-[#1a1714]/92 to-transparent blur-2xl',
-          compact ? 'top-0 h-28' : 'top-[18px] h-48 inset-x-6',
-        )}
-      />
-      {cards.map((instance, idx) => {
-        const blueprint = CARD_DEFINITIONS_MAP[instance.defId]
-        if (!blueprint) return null
-        const offset = idx - center
-        const rotation = Math.max(compact ? -8 : -13, Math.min(compact ? 8 : 13, offset * (compact ? 6 : 9)))
-        const lift = Math.abs(offset) * (compact ? 3 : 5)
-        const canPay = blueprint.cost <= energy
-        const selectable = phaseAllowsPlay && (!targetModeCardId || targetModeCardId === instance.instanceId)
-        const isSelected = Boolean(targetModeCardId && instance.instanceId === targetModeCardId)
+    <div ref={ref} className="relative flex h-full min-h-0 w-full items-end justify-center">
+      <AnimatePresence mode="popLayout" initial={false}>
+        {cards.map((instance, idx) => {
+          const def = CARD_DEFINITIONS_MAP[instance.defId]
+          if (!def) return null
+          const offset = idx - center
+          const rotation = Math.max(-10, Math.min(10, offset * (n > 6 ? 3 : 5)))
+          // Yelpaze: ortadaki kartlar yukarıda, kenarlar tabanda (kap dışına taşmaz)
+          const lift = (Math.abs(offset) ** 1.6 - Math.abs(center) ** 1.6) * 2.2
+          const affordable = def.cost <= energy
+          const isSelected = targetModeCardId === instance.instanceId
+          const dimmed = Boolean(targetModeCardId && !isSelected)
 
-        const transform = `translateY(${lift}px) rotate(${rotation.toFixed(1)}deg)`
-
-        return (
-          <div
-            key={instance.instanceId}
-            role="presentation"
-            className={cn('relative z-[3] shrink-0')}
-            style={{
-              transform,
-              transformOrigin: 'bottom center',
-              marginInline: compact ? -8 : -9,
-            }}
-          >
-            <CardInteractive
-              emphasize={isSelected}
-              instanceId={instance.instanceId}
-              definition={blueprint}
-              size={compact ? 'compact' : 'default'}
-              disabled={Boolean(!phaseAllowsPlay || !canPay || !selectable)}
-              onInteract={() => onSelectCard(instance.instanceId)}
-            />
-          </div>
-        )
-      })}
+          return (
+            <motion.div
+              key={instance.instanceId}
+              layout
+              initial={{ opacity: 0, x: -260, y: 120, rotate: -30, scale: 0.6 }}
+              animate={{ opacity: dimmed ? 0.5 : 1, x: 0, y: lift, rotate: rotation, scale: 1 }}
+              exit={{ opacity: 0, y: -160, scale: 0.75, transition: { duration: 0.25 } }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28, delay: Math.min(idx, 6) * 0.03 }}
+              className={cn('relative shrink-0 origin-bottom hover:z-30', isSelected && 'z-30')}
+              style={{ marginLeft: idx === 0 ? 0 : -overlap }}
+            >
+              <CardInteractive
+                definition={def}
+                size="hand"
+                emphasize={isSelected}
+                unaffordable={!affordable}
+                disabled={!phaseAllowsPlay}
+                textContext={textContext}
+                onInteract={() => onSelectCard(instance.instanceId)}
+              />
+            </motion.div>
+          )
+        })}
+      </AnimatePresence>
     </div>
   )
 }

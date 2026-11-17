@@ -1,131 +1,232 @@
 import { create } from 'zustand'
-import { immer } from 'zustand/middleware/immer'
 
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { QUICK_BATTLE_DECK } from '@/data/characters'
 import type { BattleChoice } from '@/game/battleChoice'
-import { endPlayerTurn, playCard, startCombat } from '@/game/engine/combatEngine'
-import { loadCombat, saveCombat } from '@/game/store/combatSave'
+import {
+  beginEnemyTurn,
+  canPlayCard,
+  finishEnemyTurn,
+  playCard,
+  resolveEnemyAction,
+  startCombat,
+} from '@/game/engine/combatEngine'
+import { loadCombat, saveCombat } from '@/game/store/persistence'
+import { getSettings } from '@/game/store/settingsStore'
 import type { GameState } from '@/game/types'
-
-const DEFAULT_SEED = 4242
+import { haptic, sfx } from '@/lib/audio'
 
 export interface TargetModeState {
   cardInstanceId: string
 }
 
-type CombatSlice = Readonly<{
+type CombatStore = {
   game: GameState
+  battle: BattleChoice | null
   targetMode: TargetModeState | null
   /** Doluysa her değişiklikte savaş bu anahtarla kaydedilir (koşu modu). */
   persistKey: string | null
-}>
+  /** Düşman turu oynatılıyor — oyuncu girdisi kilitli. */
+  busy: boolean
+  /** Şu an hamlesini yapan düşman (saldırı animasyonu için). */
+  actingEnemyUid: string | null
 
-export type CombatStore = CombatSlice &
-  Readonly<{
-    startNewCombat: (
-      seed?: number,
-      enemyDefId?: string,
-      deckDefinitionIds?: ReadonlyArray<string> | null,
-      playerCurrentHp?: number | null,
-      playerMaxHp?: number | null,
-      relicIds?: ReadonlyArray<string> | null,
-    ) => void
-    /** `battle.persistKey` ile eşleşen kayıt varsa onu yükler, yoksa yeni savaş başlatır. */
-    resumeOrStartCombat: (battle: BattleChoice) => void
-    /** store eylemi — UI doğrudan `playCard(...)` yazmasın diye daha açık isimlendirildi */
-    playCardAction: (instanceId: string, enemyUid?: string | null) => void
-    endTurn: (relicIds?: ReadonlyArray<string>) => void
-    enterTargetMode: (instanceId: string) => void
-    /** DEV ONLY: tüm düşmanları anında öldür. */
-    devKillAllEnemies: () => void
-    cancelTargetMode: () => void
-  }>
+  /** `battle.persistKey` ile eşleşen kayıt varsa onu yükler, yoksa yeni savaş başlatır. */
+  startBattle: (battle: BattleChoice, opts?: { fresh?: boolean }) => void
+  playCardAction: (instanceId: string, enemyUid?: string | null) => void
+  /** Kartı oyna; birden çok düşman ve tek hedefli kartsa hedef seçimine gir. */
+  tapCard: (instanceId: string) => void
+  endTurn: () => void
+  enterTargetMode: (instanceId: string) => void
+  cancelTargetMode: () => void
+  /** DEV ONLY: tüm düşmanları anında öldür. */
+  devKillAllEnemies: () => void
+}
 
-export const useGameStore = create(
-  immer<CombatStore>((set, get) => ({
-    game: startCombat({ seed: DEFAULT_SEED, enemyDefId: 'jaw_worm' }),
-    targetMode: null,
-    persistKey: null,
+let turnToken = 0
 
-    resumeOrStartCombat(battle) {
-      const key = battle.persistKey ?? null
-      const saved = key ? loadCombat(key) : null
-      set((draft) => {
-        draft.game =
-          saved ??
-          startCombat({
-            seed: battle.seed,
-            enemyDefId: battle.enemyDefId,
-            deckDefinitionIds: battle.deckDefinitionIds,
-            playerCurrentHp: battle.playerCurrentHp,
-            playerMaxHp: battle.playerMaxHp,
-            relicIds: battle.relicIds,
-          })
-        draft.targetMode = null
-        draft.persistKey = key
-      })
-    },
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms * (getSettings().fastMode ? 0.45 : 1)))
 
-    startNewCombat(seed = DEFAULT_SEED, enemyDefId = 'jaw_worm', deckDefinitionIds, playerCurrentHp, playerMaxHp, relicIds) {
-      set((draft) => {
-        draft.game = startCombat({
-          seed: seed ?? DEFAULT_SEED,
-          enemyDefId: enemyDefId ?? 'jaw_worm',
-          deckDefinitionIds: deckDefinitionIds ?? undefined,
-          playerCurrentHp: playerCurrentHp ?? undefined,
-          playerMaxHp: playerMaxHp ?? undefined,
-          relicIds: relicIds ?? undefined,
-        })
-        draft.targetMode = null
-        draft.persistKey = null
-      })
-    },
+function needsTarget(defId: string) {
+  return CARD_DEFINITIONS_MAP[defId]?.effects.some(
+    (e) => 'target' in e && e.target === 'enemy',
+  ) ?? false
+}
 
-    playCardAction(instanceId, enemyUid = null) {
-      set((draft) => {
-        draft.game = playCard(get().game, instanceId, enemyUid, CARD_DEFINITIONS_MAP)
-        draft.targetMode = null
-      })
-    },
+const placeholder = startCombat({ seed: 1, enemyDefId: 'jaw_worm', deckDefinitionIds: QUICK_BATTLE_DECK })
 
-    endTurn(relicIds?: ReadonlyArray<string>) {
-      if (get().game.phase !== 'playerTurn') return
-      set((draft) => {
-        draft.game = endPlayerTurn(get().game, relicIds)
-        draft.targetMode = null
-      })
-    },
+export const useGameStore = create<CombatStore>((set, get) => ({
+  game: placeholder,
+  battle: null,
+  targetMode: null,
+  persistKey: null,
+  busy: false,
+  actingEnemyUid: null,
 
-    enterTargetMode(instanceId) {
-      if (get().game.phase !== 'playerTurn') return
-      set((draft) => {
-        draft.targetMode = { cardInstanceId: instanceId }
-      })
-    },
+  startBattle(battle, opts) {
+    turnToken++
+    const key = battle.persistKey ?? null
+    const saved = key && !opts?.fresh ? loadCombat(key) : null
+    set({
+      battle,
+      game:
+        saved ??
+        startCombat({
+          seed: battle.seed,
+          enemyDefIds: battle.enemyDefIds,
+          enemyHpScale: battle.enemyHpScale,
+          deckDefinitionIds: battle.deckDefinitionIds,
+          playerCurrentHp: battle.playerCurrentHp,
+          playerMaxHp: battle.playerMaxHp,
+          relicIds: battle.relicIds,
+        }),
+      targetMode: null,
+      persistKey: key,
+      busy: false,
+      actingEnemyUid: null,
+    })
+  },
 
-    cancelTargetMode() {
-      set((draft) => {
-        draft.targetMode = null
-      })
-    },
+  playCardAction(instanceId, enemyUid = null) {
+    const { game, busy, battle } = get()
+    if (busy) return
+    if (!canPlayCard(game, instanceId)) {
+      sfx.denied()
+      set({ targetMode: null })
+      return
+    }
+    set({ game: playCard(game, instanceId, enemyUid, CARD_DEFINITIONS_MAP, battle?.relicIds), targetMode: null })
+  },
 
-    devKillAllEnemies() {
-      set((draft) => {
-        draft.game = {
-          ...draft.game,
-          enemies: [],
-          phase: 'victory',
-        }
-        draft.targetMode = null
-      })
-    },
-  })),
-)
+  tapCard(instanceId) {
+    const { game, busy, targetMode } = get()
+    if (busy || game.phase !== 'playerTurn') return
+    if (targetMode?.cardInstanceId === instanceId) {
+      set({ targetMode: null })
+      return
+    }
+    const inst = game.hand.find((c) => c.instanceId === instanceId)
+    if (!inst) return
+    if (!canPlayCard(game, instanceId)) {
+      sfx.denied()
+      return
+    }
+    const alive = game.enemies.filter((e) => e.hp > 0)
+    if (alive.length > 1 && needsTarget(inst.defId)) {
+      sfx.click()
+      set({ targetMode: { cardInstanceId: instanceId } })
+      return
+    }
+    get().playCardAction(instanceId, alive[0]?.uid ?? null)
+  },
 
-// Koşu savaşını her değişiklikte kaydet
+  endTurn() {
+    const { game, busy, battle } = get()
+    if (busy || game.phase !== 'playerTurn') return
+    const token = ++turnToken
+    const relics = battle?.relicIds
+    const alive = () => turnToken === token
+
+    set({ busy: true, targetMode: null, game: beginEnemyTurn(game, relics) })
+    sfx.enemyTurn()
+
+    void (async () => {
+      await wait(420)
+      for (const enemy of get().game.enemies) {
+        if (!alive() || get().game.phase !== 'enemyTurn') break
+        if (!get().game.enemies.some((e) => e.uid === enemy.uid && e.hp > 0)) continue
+        set({ actingEnemyUid: enemy.uid })
+        await wait(240) // atılma animasyonu
+        if (!alive()) return
+        set({ game: resolveEnemyAction(get().game, enemy.uid) })
+        await wait(380)
+        if (!alive()) return
+        set({ actingEnemyUid: null })
+      }
+      if (!alive()) return
+      set({ game: finishEnemyTurn(get().game, relics), busy: false, actingEnemyUid: null })
+    })()
+  },
+
+  enterTargetMode(instanceId) {
+    if (get().game.phase !== 'playerTurn' || get().busy) return
+    set({ targetMode: { cardInstanceId: instanceId } })
+  },
+
+  cancelTargetMode() {
+    set({ targetMode: null })
+  },
+
+  devKillAllEnemies() {
+    set((s) => ({ game: { ...s.game, enemies: [], phase: 'victory' }, targetMode: null }))
+  },
+}))
+
+// ---------------------------------------------------------------------------
+// Kalıcılık: koşu savaşını kaydet. Düşman turu ortası kaydedilmez — oyuncu
+// menüden dönerse turu bitirmeden önceki ana döner (aynı tohum → aynı sonuç).
+// ---------------------------------------------------------------------------
+
 useGameStore.subscribe((state, prev) => {
-  if (state.persistKey && state.game !== prev.game) {
+  if (state.persistKey && state.game !== prev.game && state.game.phase !== 'enemyTurn') {
     saveCombat(state.persistKey, state.game)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Geri bildirim: durum farklarından ses + titreşim üret. Bileşenler bağımsız kalır.
+// ---------------------------------------------------------------------------
+
+useGameStore.subscribe((state, prev) => {
+  const a = prev.game
+  const b = state.game
+  if (a === b || state.battle !== prev.battle) return
+
+  // Oyuncu
+  const hurt = a.player.hp - b.player.hp
+  if (hurt > 0) {
+    sfx.playerHurt(hurt)
+    haptic(hurt >= 12 ? [60, 40, 80] : 45)
+  } else if (b.player.block < a.player.block && b.phase === 'enemyTurn') {
+    sfx.block()
+  }
+  if (b.player.block > a.player.block && b.phase === 'playerTurn') sfx.block()
+  if (b.player.statuses.strength > a.player.statuses.strength || b.player.statuses.dexterity > a.player.statuses.dexterity) sfx.buff()
+  if (b.player.statuses.weak > a.player.statuses.weak || b.player.statuses.vulnerable > a.player.statuses.vulnerable) sfx.debuff()
+
+  // Kart oynandı
+  if (b.stats.cardsPlayed > a.stats.cardsPlayed) sfx.cardPlay()
+
+  // Düşmanlar
+  let dealt = 0
+  let died = false
+  let poisoned = false
+  for (const before of a.enemies) {
+    const after = b.enemies.find((e) => e.uid === before.uid)
+    if (!after) {
+      if (before.hp > 0) died = true
+      dealt += before.hp
+      continue
+    }
+    dealt += Math.max(0, before.hp - after.hp)
+    if (after.statuses.poison > before.statuses.poison) poisoned = true
+    if (after.statuses.strength > before.statuses.strength && b.phase === 'enemyTurn') sfx.buff()
+  }
+  if (dealt > 0) {
+    sfx.hit(dealt)
+    haptic(dealt >= 15 ? 35 : 15)
+  }
+  if (died) sfx.enemyDeath()
+  if (poisoned) sfx.poison()
+
+  // Faz
+  if (a.phase !== b.phase) {
+    if (b.phase === 'victory') sfx.victory()
+    if (b.phase === 'defeat') {
+      sfx.defeat()
+      haptic([100, 60, 200])
+    }
+    if (a.phase === 'enemyTurn' && b.phase === 'playerTurn') sfx.turnStart()
   }
 })
 

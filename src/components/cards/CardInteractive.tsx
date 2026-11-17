@@ -1,195 +1,189 @@
 import { motion } from 'framer-motion'
+import { memo } from 'react'
 
-import type { CardDefinition } from '@/game/types'
+import { describeCard, KEYWORD_HELP, type CardTextContext } from '@/game/cardText'
+import type { CardDefinition, CardRarity, CardType } from '@/game/types'
 import { getCardArtSrc } from '@/game/visuals'
 import { cn } from '@/lib/cn'
 
+export type CardSize = 'hand' | 'normal' | 'small'
+
 export type CardInteractiveProps = {
   definition: CardDefinition
-  instanceId: string
   disabled?: boolean
+  /** Enerji yetmiyor — maliyet kırmızı görünür, kart yine de görünür kalır. */
+  unaffordable?: boolean
   emphasize?: boolean
-  /** Savaş ekranı el destesi — sabit oranlı kart */
-  size?: 'default' | 'compact'
+  size?: CardSize
+  /** Savaş içi dinamik sayılar (Güç/Zayıf/Savunmasız/Çeviklik). */
+  textContext?: CardTextContext
   /** Belirtilmezse kart tıklanamaz (saf görüntü modu). */
   onInteract?: () => void
+  /** El içi düzen animasyonu için. */
+  layoutId?: string
 }
 
-const hoverLift = { default: 10, compact: 8 } as const
+const TYPE_LABEL: Record<CardType, string> = { attack: 'Saldırı', skill: 'Beceri', power: 'Güç' }
 
-const typeTone: Record<CardDefinition['type'], string> = {
-  attack:
-    'from-[#261412] via-[#130e0e] to-[#080706] border-[#704237]/55 shadow-[inset_0_1px_0_rgb(255_255_255/0.05),0_8px_24px_-6px_rgb(0_0_0/0.65)]',
-  skill:
-    'from-[#121a17] via-[#0e1210] to-[#070808] border-[#3d5348]/52 shadow-[inset_0_1px_0_rgb(255_255_255/0.04),0_8px_24px_-6px_rgb(0_0_0/0.6)]',
-  power:
-    'from-[#1f190e] via-[#141007] to-[#080706] border-[#6f5f32]/55 shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_8px_24px_-6px_rgb(0_0_0/0.62)]',
+const TYPE_TONE: Record<CardType, string> = {
+  attack: 'from-[#2a1512] via-[#150e0d] to-[#090706] border-[#7a4638]/60',
+  skill: 'from-[#122019] via-[#0d1411] to-[#070908] border-[#3f5a4b]/60',
+  power: 'from-[#241c0c] via-[#151008] to-[#080706] border-[#7a6830]/65',
 }
 
-/** El: ISO oyun kartına yakın oran 63:88 (≈5:7) — sabit kutular, kırpma yok */
-const shellCompact = cn(
-  'flex h-[13.9rem] w-[9.875rem] flex-col overflow-hidden rounded-lg border bg-gradient-to-b p-2',
-)
-const shellDefault = cn(
-  'flex h-[17.35rem] w-[12.375rem] flex-col overflow-hidden rounded-xl border bg-gradient-to-b p-3',
-)
+const TYPE_GLOW: Record<CardType, string> = {
+  attack: 'rgb(170 70 52/0.55)',
+  skill: 'rgb(70 120 96/0.5)',
+  power: 'rgb(180 150 60/0.55)',
+}
 
-export function CardInteractive({
+const RARITY_GEM: Record<CardRarity, string> = {
+  starter: 'bg-[#6b655c]',
+  common: 'bg-[#9a9285]',
+  uncommon: 'bg-[#4f9fd4] shadow-[0_0_6px_rgb(79_159_212/0.8)]',
+  rare: 'bg-[#e0b04a] shadow-[0_0_8px_rgb(224_176_74/0.9)]',
+}
+
+const RARITY_LABEL: Record<CardRarity, string> = {
+  starter: 'Başlangıç',
+  common: 'Yaygın',
+  uncommon: 'Nadir',
+  rare: 'Efsanevi',
+}
+
+const SIZES: Record<CardSize, { shell: string; art: string; name: string; text: string; cost: string }> = {
+  hand: { shell: 'h-[12.6rem] w-[9rem] p-1.5', art: 'h-[4.9rem]', name: 'text-[13px]', text: 'text-[10.5px]', cost: 'h-7 w-7 text-[15px]' },
+  normal: { shell: 'h-[16rem] w-[11.5rem] p-2.5', art: 'h-[6.6rem]', name: 'text-[15px]', text: 'text-[12px]', cost: 'h-8 w-8 text-[17px]' },
+  small: { shell: 'h-[11rem] w-[7.9rem] p-1.5', art: 'h-[4.1rem]', name: 'text-[12px]', text: 'text-[9.5px]', cost: 'h-6 w-6 text-[13px]' },
+}
+
+function CardInteractiveImpl({
   definition,
-  instanceId,
   disabled,
+  unaffordable,
   emphasize,
-  size = 'default',
+  size = 'normal',
+  textContext,
   onInteract,
+  layoutId,
 }: CardInteractiveProps) {
-  const tone = typeTone[definition.type]
-  const compact = size === 'compact'
-  // Yükseltilmiş kart görseli için base ID kullan (strike+ → strike)
-  const baseId = definition.isUpgraded ? definition.id.replace(/\+$/, '') : definition.id
-  const artSrc = getCardArtSrc(baseId)
-
-  const glowColor = {
-    attack: 'rgb(140 60 46/0.55)',
-    skill: 'rgb(58 92 76/0.5)',
-    power: 'rgb(138 116 52/0.55)',
-  }[definition.type]
+  const s = SIZES[size]
+  const artSrc = getCardArtSrc(definition)
+  const parts = describeCard(definition, textContext)
+  const glow = TYPE_GLOW[definition.type]
+  const interactive = Boolean(onInteract) && !disabled
 
   return (
     <motion.article
-      layoutId={`card-${instanceId}`}
-      layout
+      layoutId={layoutId}
+      layout={layoutId ? true : undefined}
       aria-disabled={disabled}
-      whileHover={
-        disabled
-          ? undefined
-          : {
-              y: -hoverLift[compact ? 'compact' : 'default'],
-              rotate: -0.5,
-              boxShadow: `0 0 0 1px ${glowColor}, 0 16px 36px -10px rgb(0 0 0/0.7), 0 0 28px -4px ${glowColor}`,
-            }
-      }
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      transition={{
-        layout: { duration: 0.45, type: 'spring', stiffness: 320, damping: 34 },
-      }}
+      whileHover={interactive ? { y: size === 'hand' ? -14 : -6, scale: size === 'hand' ? 1.06 : 1.02 } : undefined}
+      whileTap={interactive ? { scale: 0.97 } : undefined}
+      transition={{ type: 'spring', stiffness: 420, damping: 30 }}
       onClick={(evt) => {
-        evt.preventDefault()
         evt.stopPropagation()
-        if (!disabled && onInteract) onInteract()
+        if (interactive) onInteract?.()
       }}
       role={onInteract ? 'button' : undefined}
-      tabIndex={disabled || !onInteract ? -1 : 0}
+      tabIndex={interactive ? 0 : -1}
+      aria-label={`${definition.name}, ${definition.cost} enerji. ${parts.map((p) => p.text).join('')}`}
       onKeyDown={(evt) => {
-        if (disabled || !onInteract) return
+        if (!interactive) return
         if (evt.key === 'Enter' || evt.key === ' ') {
           evt.preventDefault()
-          onInteract()
+          onInteract?.()
         }
       }}
+      style={{ ['--card-glow' as string]: glow }}
       className={cn(
-        'relative isolate min-h-0 text-left shadow-black/55 ring-offset-2 ring-offset-[#080807]',
-        compact ? shellCompact : shellDefault,
-        tone,
-        disabled && 'pointer-events-none opacity-42 saturate-[0.92]',
-        emphasize &&
-          'z-10 shadow-[0_0_0_2px_rgb(196_160_84/0.85),0_12px_32px_-6px_rgb(0_0_0/0.75)] ring-2 ring-[#d4af37]/95',
+        'group relative isolate flex select-none flex-col overflow-visible rounded-xl border bg-gradient-to-b text-left',
+        'shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_10px_26px_-8px_rgb(0_0_0/0.75)]',
+        interactive && 'cursor-pointer hover:shadow-[0_0_0_1px_var(--card-glow),0_18px_40px_-10px_rgb(0_0_0/0.8),0_0_30px_-4px_var(--card-glow)]',
+        s.shell,
+        TYPE_TONE[definition.type],
+        disabled && 'opacity-45 saturate-50',
+        emphasize && 'z-10 -translate-y-3 shadow-[0_0_0_2px_rgb(212_175_55/0.95),0_0_36px_-4px_rgb(212_175_55/0.6)]',
       )}
-      title={compact ? `${definition.name} — ${definition.description}` : undefined}
     >
-      {/* Illüstrasyon: kırpmadan sığdır, koyu nötr kenar */}
+      {/* Maliyet */}
+      <span
+        className={cn(
+          'absolute -left-2 -top-2 z-10 flex items-center justify-center rounded-full border-2 font-display font-bold tabular-nums shadow-[0_2px_8px_rgb(0_0_0/0.8)]',
+          s.cost,
+          unaffordable
+            ? 'border-[#7a2a22] bg-gradient-to-b from-[#5a1a14] to-[#2a0a08] text-[#ff9a8a]'
+            : 'border-[#8a7030] bg-gradient-to-b from-[#e8cf8a] to-[#9c7f3d] text-[#1a140a]',
+        )}
+      >
+        {definition.cost}
+      </span>
+
+      {/* İsim */}
+      <div className="flex shrink-0 items-center justify-center gap-1 px-4 pb-1 pt-0.5">
+        <p
+          className={cn(
+            'truncate text-center font-display font-semibold leading-tight tracking-tight',
+            s.name,
+            definition.isUpgraded ? 'text-[#a8e08a]' : 'text-[#f0e8dc]',
+          )}
+        >
+          {definition.name}
+        </p>
+      </div>
+
+      {/* Görsel */}
       <div
         className={cn(
-          'relative mb-2 flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/40 bg-[#090807]',
-          compact ? 'h-[5.5rem]' : 'h-[7rem]',
+          'relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/50 bg-[#090807]',
+          s.art,
         )}
       >
         {artSrc ? (
           <img
             src={artSrc}
             alt=""
-            className="pointer-events-none max-h-[94%] max-w-[94%] object-contain object-center"
+            loading="lazy"
+            decoding="async"
+            className="pointer-events-none h-full w-full object-cover object-center"
             draggable={false}
           />
         ) : (
-          <span className="text-[10px] uppercase tracking-widest text-[#454038] opacity-55">kart</span>
+          <div
+            className="flex h-full w-full items-center justify-center"
+            style={{ background: `radial-gradient(circle at 50% 45%, ${glow}, transparent 70%)` }}
+          >
+            <span className="text-[2.2em] drop-shadow-[0_2px_8px_rgb(0_0_0/0.9)]">{definition.glyph ?? '✦'}</span>
+          </div>
         )}
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.06] pb-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#969088]">
-        <span className="truncate text-[#c4beb4]">{definition.type}</span>
-        <motion.span
-          layout
-          className={cn(
-            'shrink-0 font-semibold tabular-nums text-[#d4bc7a]',
-            compact ? 'text-base' : 'text-[1.2rem]',
-          )}
-        >
-          {definition.cost}
-        </motion.span>
+      {/* Tür + nadirlik */}
+      <div className="mt-1 flex shrink-0 items-center justify-center gap-1.5 text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[#a39a8c]">
+        <span className={cn('h-1.5 w-1.5 rounded-full', RARITY_GEM[definition.rarity])} title={RARITY_LABEL[definition.rarity]} />
+        {TYPE_LABEL[definition.type]}
       </div>
 
-      <p
-        className={cn(
-          'mt-2 line-clamp-2 font-display font-semibold leading-tight tracking-tight text-[#ebe4d9]',
-          compact ? 'text-[13px]' : 'text-[1.0625rem]',
-        )}
-      >
-        {definition.name}
-        {definition.isUpgraded && (
-          <span className="ml-1 rounded-sm bg-[#c4a054]/18 px-1 py-px text-[10px] font-semibold text-[#dbb96a]">
-            +
-          </span>
-        )}
+      {/* Açıklama */}
+      <p className={cn('mt-1 flex min-h-0 flex-1 items-center justify-center overflow-hidden text-center leading-snug text-[#d4cbbd]', s.text)}>
+        <span>
+          {parts.map((p, i) => (
+            <span
+              key={i}
+              title={p.keyword ? KEYWORD_HELP[p.text] : undefined}
+              className={cn(
+                p.tone === 'up' && 'font-bold text-[#8fe07a]',
+                p.tone === 'down' && 'font-bold text-[#ff8a7a]',
+                p.keyword && 'font-semibold text-[#e8c878]',
+              )}
+            >
+              {p.text}
+            </span>
+          ))}
+        </span>
       </p>
-      <p
-        className={cn(
-          'mt-1.5 min-h-0 flex-1 overflow-hidden leading-snug text-[#bfb6aa]',
-          compact ? 'line-clamp-4 text-[11px]' : 'line-clamp-5 text-[13px]',
-        )}
-      >
-        {definition.description}
-      </p>
-
-      {/* Keyword rozetleri */}
-      {(definition.exhaust || definition.ethereal || definition.innate) && (
-        <div className={cn('mt-auto flex shrink-0 flex-wrap gap-1', compact ? 'pt-1' : 'pt-1.5')}>
-          {definition.exhaust && (
-            <span className="rounded bg-[#8b1a1a]/35 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-[#d46a6a]">
-              Tüket
-            </span>
-          )}
-          {definition.ethereal && (
-            <span className="rounded bg-[#2a1f5e]/45 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-[#8b82e0]">
-              Geçici
-            </span>
-          )}
-          {definition.innate && (
-            <span className="rounded bg-[#3d5c25]/45 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-[#7ab04e]">
-              İçgüdü
-            </span>
-          )}
-        </div>
-      )}
-
-      {!compact && !definition.exhaust && !definition.ethereal && !definition.innate ? (
-        <div className="mt-auto shrink-0 border-t border-white/[0.05] pt-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[#5c574e]">
-          #{definition.id}
-        </div>
-      ) : null}
-
-      <motion.div
-        layout
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute inset-[-4px] -z-10 rounded-[inherit] blur-[32px]',
-          definition.type === 'attack' ? 'bg-[#8b3d32]' : '',
-          definition.type === 'skill' ? 'bg-[#3f5c4f]' : '',
-          definition.type === 'power' ? 'bg-[#8a7438]' : '',
-        )}
-        initial={{ opacity: 0.08 }}
-        whileHover={disabled ? undefined : { opacity: 0.28 }}
-        transition={{ duration: 0.2 }}
-      />
     </motion.article>
   )
 }
+
+export const CardInteractive = memo(CardInteractiveImpl)

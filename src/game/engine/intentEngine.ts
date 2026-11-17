@@ -8,7 +8,7 @@ export function syncEnemyIntents(state: GameState): GameState {
 
   enemies = enemies.map((enemyRuntime) => {
     const blueprint = ENEMY_DEFINITIONS_MAP[enemyRuntime.defId]
-    const intent = blueprint.intentScript(idx)
+    const intent = blueprint.intentScript(idx + (enemyRuntime.intentOffset ?? 0))
     return { ...enemyRuntime, intent }
   })
 

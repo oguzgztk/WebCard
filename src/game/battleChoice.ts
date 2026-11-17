@@ -1,16 +1,19 @@
-/** Lobi → savaş geçişi için sabit seçenek kimliği */
+/** Savaş başlatma parametreleri — lobi (hızlı savaş) ve koşu düğümleri ortak kullanır. */
 export type BattleChoice = Readonly<{
   seed: number
-  enemyDefId: string
+  enemyDefIds: ReadonlyArray<string>
+  /** Düşman can çarpanı (kat/zorluk). */
+  enemyHpScale?: number
   label: string
-  /** Koşu modunda: run'ın güncel destesi. Belirtilmezse başlangıç destesi kullanılır. */
-  deckDefinitionIds?: ReadonlyArray<string>
+  deckDefinitionIds: ReadonlyArray<string>
   /** Koşu modunda: run'dan taşınan mevcut can. Belirtilmezse tam can başlar. */
   playerCurrentHp?: number
-  /** Koşu modunda: oyuncunun maksimum canı. Belirtilmezse sabit değer kullanılır. */
   playerMaxHp?: number
-  /** Koşu modunda: aktif relic ID listesi. */
   relicIds?: ReadonlyArray<string>
   /** Koşu modunda: savaş ara kaydı anahtarı (düğüm ID'si). Yoksa savaş kaydedilmez. */
   persistKey?: string
+  /** Oyuncu paneli için karakter. */
+  characterId?: string
+  /** Elit/boss vurgusu. */
+  tier?: 'normal' | 'elite' | 'boss'
 }>
