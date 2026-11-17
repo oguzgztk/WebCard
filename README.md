@@ -25,7 +25,7 @@ npm run dev
 | `npm run playtest [url] [klasör] [g] [y]` | Sistem Chrome'u ile ilk savaşı oynatıp ekran görüntüsü alır |
 | `npm run fullrun [url] [klasör] [karakter]` | İki perdelik tam koşuyu arayüz üzerinden oynar (akış testi) |
 | `npm run screens [url] [klasör]` | Her koşu ekranına atlayıp görüntü alır (geliştirme sunucusunda) |
-| `npm run optimize-images` | `public/game-art` PNG'lerini ve `art-src/*.svg` çizimleri WebP'ye çevirir |
+| `npm run optimize-images` | Görselleri WebP'ye çevirir: `art-src/painted/` (boyalı, öncelikli) → yoksa `art-src/*.svg` (vektör yedek) |
 
 > `simulate` için Yükseliş seviyeleri `ASC=0,5,10 npm run simulate 300` şeklinde seçilir. `playtest`/`fullrun`/`screens` sistemde kurulu Google Chrome kullanır.
 
@@ -70,4 +70,4 @@ art-src/           Vektör çizim kaynakları (SVG) — optimize-images ile WebP
 - **Denge:** değer değiştirdikten sonra `npm run simulate` ile etkisini ölç.
 - **RNG:** Park–Miller LCG; aynı tohum aynı haritayı, karşılaşmaları ve karıştırma sırasını üretir.
 
-Yol haritası: [`docs/GAME_PLAN.md`](docs/GAME_PLAN.md)
+Yol haritası: [`docs/GAME_PLAN.md`](docs/GAME_PLAN.md) · Boyalı görsel üretim promptları: [`docs/ART_PROMPTS.md`](docs/ART_PROMPTS.md)
