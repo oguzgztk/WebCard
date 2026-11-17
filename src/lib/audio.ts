@@ -10,9 +10,9 @@ let ctx: AudioContext | null = null
 let master: GainNode | null = null
 let noiseBuffer: AudioBuffer | null = null
 
-function audio(): { ctx: AudioContext; out: GainNode } | null {
-  const s = getSettings()
-  if (!s.sound || typeof window === 'undefined') return null
+/** AudioContext'i (gerekirse) oluşturur. Ses kapalıyken de müzik için kullanılabilir. */
+function ensureContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null
   try {
     if (!ctx) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -22,11 +22,19 @@ function audio(): { ctx: AudioContext; out: GainNode } | null {
       master.connect(ctx.destination)
     }
     if (ctx.state === 'suspended') void ctx.resume()
-    master!.gain.value = Math.max(0, Math.min(1, s.volume)) * 0.5
-    return { ctx, out: master! }
+    return ctx
   } catch {
     return null
   }
+}
+
+function audio(): { ctx: AudioContext; out: GainNode } | null {
+  const s = getSettings()
+  if (!s.sound) return null
+  const c = ensureContext()
+  if (!c || !master) return null
+  master.gain.value = Math.max(0, Math.min(1, s.volume)) * 0.5
+  return { ctx: c, out: master }
 }
 
 function noise(c: AudioContext) {
@@ -171,4 +179,100 @@ export function haptic(pattern: number | number[]) {
   } catch {
     /* desteklenmiyor */
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ambiyans müziği — karanlık bir drone + seyrek çan notaları (D minör pentatonik).
+// ---------------------------------------------------------------------------
+
+let music: { gain: GainNode; stop: () => void } | null = null
+
+const BELL_NOTES = [293.66, 349.23, 392.0, 440.0, 523.25, 587.33] // D4 F4 G4 A4 C5 D5
+
+export function startMusic() {
+  const c = ensureContext()
+  if (!c || music) return
+  const gain = c.createGain()
+  gain.gain.value = 0
+  gain.connect(c.destination)
+
+  // Drone: iki hafif detune testere → alçak geçiren filtre (yavaş LFO ile nefes alır)
+  const filter = c.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.value = 320
+  filter.Q.value = 2
+  filter.connect(gain)
+  const lfo = c.createOscillator()
+  const lfoGain = c.createGain()
+  lfo.frequency.value = 0.05
+  lfoGain.gain.value = 160
+  lfo.connect(lfoGain).connect(filter.frequency)
+  lfo.start()
+
+  const drones = [73.42, 73.9, 110].map((f, i) => {
+    const o = c.createOscillator()
+    o.type = i === 2 ? 'triangle' : 'sawtooth'
+    o.frequency.value = f
+    const g = c.createGain()
+    g.gain.value = i === 2 ? 0.05 : 0.07
+    o.connect(g).connect(filter)
+    o.start()
+    return o
+  })
+
+  // Yankı: geri beslemeli gecikme
+  const delay = c.createDelay(2)
+  delay.delayTime.value = 0.7
+  const feedback = c.createGain()
+  feedback.gain.value = 0.45
+  delay.connect(feedback).connect(delay)
+  delay.connect(gain)
+
+  let timer = 0
+  const bell = () => {
+    const t0 = c.currentTime
+    const f = BELL_NOTES[Math.floor(Math.random() * BELL_NOTES.length)]!
+    const o = c.createOscillator()
+    o.type = 'sine'
+    o.frequency.value = f
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, t0)
+    g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 3)
+    o.connect(g)
+    g.connect(gain)
+    g.connect(delay)
+    o.start(t0)
+    o.stop(t0 + 3.1)
+    timer = window.setTimeout(bell, 3500 + Math.random() * 5000)
+  }
+  timer = window.setTimeout(bell, 2000)
+
+  music = {
+    gain,
+    stop() {
+      window.clearTimeout(timer)
+      const t = c.currentTime
+      gain.gain.cancelScheduledValues(t)
+      gain.gain.setTargetAtTime(0, t, 0.4)
+      window.setTimeout(() => {
+        drones.forEach((o) => o.stop())
+        lfo.stop()
+        gain.disconnect()
+      }, 2000)
+    },
+  }
+  updateMusicVolume()
+}
+
+export function stopMusic() {
+  music?.stop()
+  music = null
+}
+
+export function updateMusicVolume() {
+  if (!music || !ctx) return
+  const s = getSettings()
+  const target = s.music ? Math.max(0, Math.min(1, s.volume)) * 0.35 : 0
+  music.gain.gain.setTargetAtTime(target, ctx.currentTime, 0.8)
 }

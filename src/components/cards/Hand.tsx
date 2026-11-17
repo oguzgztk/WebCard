@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { CardInteractive } from '@/components/cards/CardInteractive'
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { sfx } from '@/lib/audio'
 import type { CardTextContext } from '@/game/cardText'
 import type { CardInstance } from '@/game/types'
 import { cn } from '@/lib/cn'
@@ -33,9 +34,24 @@ function useWidth<T extends HTMLElement>() {
   return [ref, width] as const
 }
 
+/** Dokunmatik cihaz mı? (Fare yoksa ilk dokunuş kartı seçer, ikincisi oynar.) */
+const coarsePointer = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+
 /** El — yelpaze düzeni; kartlar kaba sığacak kadar üst üste biner, hover'da öne çıkar. */
 export function Hand({ cards, energy, phaseAllowsPlay, targetModeCardId, onSelectCard, textContext }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>()
+  // Dokunmatikte üst üste binen kartlar okunamaz ve yanlışlıkla oynanır: önce "kaldır", sonra oyna.
+  const [armedId, setArmedId] = useState<string | null>(null)
+  useEffect(() => setArmedId(null), [cards, phaseAllowsPlay])
+  const handleTap = (id: string) => {
+    if (coarsePointer() && armedId !== id) {
+      sfx.hover()
+      setArmedId(id)
+      return
+    }
+    setArmedId(null)
+    onSelectCard(id)
+  }
   const n = cards.length
   const center = (n - 1) / 2
   // Sığması için gereken üst üste binme (px); en az 10px nefes.
@@ -52,7 +68,8 @@ export function Hand({ cards, energy, phaseAllowsPlay, targetModeCardId, onSelec
           // Yelpaze: ortadaki kartlar yukarıda, kenarlar tabanda (kap dışına taşmaz)
           const lift = (Math.abs(offset) ** 1.6 - Math.abs(center) ** 1.6) * 2.2
           const affordable = def.cost <= energy
-          const isSelected = targetModeCardId === instance.instanceId
+          const isSelected = targetModeCardId === instance.instanceId || armedId === instance.instanceId
+          const armed = armedId === instance.instanceId
           const dimmed = Boolean(targetModeCardId && !isSelected)
 
           return (
@@ -60,7 +77,13 @@ export function Hand({ cards, energy, phaseAllowsPlay, targetModeCardId, onSelec
               key={instance.instanceId}
               layout
               initial={{ opacity: 0, x: -260, y: 120, rotate: -30, scale: 0.6 }}
-              animate={{ opacity: dimmed ? 0.5 : 1, x: 0, y: lift, rotate: rotation, scale: 1 }}
+              animate={{
+                opacity: dimmed ? 0.5 : 1,
+                x: 0,
+                y: armed ? lift - 40 : lift,
+                rotate: armed ? 0 : rotation,
+                scale: armed ? 1.22 : 1,
+              }}
               exit={{ opacity: 0, y: -160, scale: 0.75, transition: { duration: 0.25 } }}
               transition={{ type: 'spring', stiffness: 300, damping: 28, delay: Math.min(idx, 6) * 0.03 }}
               className={cn('relative shrink-0 origin-bottom hover:z-30', isSelected && 'z-30')}
@@ -73,7 +96,7 @@ export function Hand({ cards, energy, phaseAllowsPlay, targetModeCardId, onSelec
                 unaffordable={!affordable}
                 disabled={!phaseAllowsPlay}
                 textContext={textContext}
-                onInteract={() => onSelectCard(instance.instanceId)}
+                onInteract={() => handleTap(instance.instanceId)}
               />
             </motion.div>
           )

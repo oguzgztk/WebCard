@@ -19,7 +19,7 @@ page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
 page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`))
 
 await page.goto(url)
-await page.evaluate(() => localStorage.clear())
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('webcard_help_seen', 'true') })
 await page.reload()
 await page.getByText('Koşu Başlat').click()
 await page.getByText('Gölge', { exact: true }).click()

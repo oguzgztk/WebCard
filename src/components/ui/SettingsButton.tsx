@@ -62,7 +62,8 @@ export function SettingsButton({ className }: { className?: string }) {
               if (v) sfx.click()
             }}
           />
-          <label className={cn('rounded-lg border border-[#2e2a22] bg-black/30 px-4 py-3', !s.sound && 'opacity-50')}>
+          <Toggle label="Müzik" hint="Karanlık zindan ambiyansı" value={s.music} onChange={(v) => s.update({ music: v })} />
+          <label className="rounded-lg border border-[#2e2a22] bg-black/30 px-4 py-3">
             <span className="flex justify-between text-[14px] font-medium text-[#ede6d8]">
               Ses düzeyi <span className="tabular-nums text-[#a89f92]">{Math.round(s.volume * 100)}%</span>
             </span>
@@ -72,7 +73,6 @@ export function SettingsButton({ className }: { className?: string }) {
               max={1}
               step={0.05}
               value={s.volume}
-              disabled={!s.sound}
               onChange={(e) => s.update({ volume: Number(e.target.value) })}
               onPointerUp={() => sfx.hit(10)}
               className="mt-2 w-full accent-[#c4a054]"

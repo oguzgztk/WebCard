@@ -93,13 +93,15 @@ const SETTINGS_KEY = 'webcard_settings_v1'
 
 export interface Settings {
   sound: boolean
+  /** Ambiyans müziği. */
+  music: boolean
   volume: number
   haptics: boolean
   /** Animasyon hızı: düşman turu gecikmeleri bununla çarpılır. */
   fastMode: boolean
 }
 
-export const DEFAULT_SETTINGS: Settings = { sound: true, volume: 0.6, haptics: true, fastMode: false }
+export const DEFAULT_SETTINGS: Settings = { sound: true, music: true, volume: 0.6, haptics: true, fastMode: false }
 
 export function loadSettings(): Settings {
   return { ...DEFAULT_SETTINGS, ...read<Settings>(SETTINGS_KEY) }
@@ -107,4 +109,16 @@ export function loadSettings(): Settings {
 
 export function saveSettings(s: Settings) {
   write(SETTINGS_KEY, s)
+}
+
+// ── Rehber ──────────────────────────────────────────────────────────────────
+
+const HELP_KEY = 'webcard_help_seen'
+
+export function hasSeenHelp() {
+  return read<boolean>(HELP_KEY) === true
+}
+
+export function markHelpSeen() {
+  write(HELP_KEY, true)
 }

@@ -25,7 +25,7 @@ const shot = async (name) => {
 }
 
 await page.goto(url)
-await page.evaluate(() => localStorage.clear())
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('webcard_help_seen', 'true') })
 await page.reload()
 await shot('lobby')
 

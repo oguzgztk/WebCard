@@ -10,8 +10,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   ...loadSettings(),
   update(patch) {
     set(patch)
-    const { sound, volume, haptics, fastMode } = get()
-    saveSettings({ sound, volume, haptics, fastMode })
+    const { sound, music, volume, haptics, fastMode } = get()
+    saveSettings({ sound, music, volume, haptics, fastMode })
   },
 }))
 

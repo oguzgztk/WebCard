@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { HowToPlay } from '@/components/ui/HowToPlay'
 import { SettingsButton } from '@/components/ui/SettingsButton'
 import { ALL_CHARACTERS, DEMIRCI, QUICK_BATTLE_DECK } from '@/data/characters'
 import { ENEMY_DEFINITIONS_MAP } from '@/data/enemies'
 import type { BattleChoice } from '@/game/battleChoice'
 import type { Difficulty } from '@/game/runTypes'
-import { loadMeta } from '@/game/store/persistence'
+import { hasSeenHelp, loadMeta, markHelpSeen } from '@/game/store/persistence'
 import { getEnemyArtSrc } from '@/game/visuals'
 import { sfx } from '@/lib/audio'
 import { cn } from '@/lib/cn'
@@ -42,6 +43,12 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
   const [view, setView] = useState<'main' | 'character'>('main')
   const [difficulty, setDifficulty] = useState<Difficulty>('normal')
   const meta = useMemo(() => loadMeta(), [])
+  // İlk ziyarette rehber kendiliğinden açılır.
+  const [helpOpen, setHelpOpen] = useState(() => meta.runsStarted === 0 && !hasSeenHelp())
+  const closeHelp = () => {
+    markHelpSeen()
+    setHelpOpen(false)
+  }
 
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-12 sm:px-6">
@@ -49,7 +56,19 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
       <div aria-hidden className="pointer-events-none absolute inset-x-[-30%] top-[-20%] h-[55vh] rounded-[100%] bg-[radial-gradient(ellipse_at_center,_rgb(90_68_44/0.28),_transparent_65%)]" />
       <div aria-hidden className="pointer-events-none absolute bottom-[-10%] left-[-10%] h-[40vh] w-[60vw] rounded-[100%] bg-[radial-gradient(ellipse_at_center,_rgb(60_42_28/0.18),_transparent_70%)]" />
 
-      <SettingsButton className="absolute right-4 top-4" />
+      <div className="absolute right-4 top-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          title="Nasıl Oynanır"
+          aria-label="Nasıl Oynanır"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#3f3a34]/80 bg-black/40 font-display text-[17px] font-semibold text-[#a89f92] transition hover:border-[#6a5f4f] hover:text-[#f2eae1]"
+        >
+          ?
+        </button>
+        <SettingsButton />
+      </div>
+      <HowToPlay open={helpOpen} onClose={closeHelp} />
       <div className="relative w-full max-w-xl">
         {/* Başlık */}
         <div className="mb-8 text-center">
