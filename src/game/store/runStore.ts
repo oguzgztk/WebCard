@@ -123,3 +123,8 @@ useRunStore.subscribe((state, prev) => {
     }))
   }
 })
+
+if (import.meta.env.DEV) {
+  const exposed = window as typeof window & { __RUN_STORE__?: typeof useRunStore }
+  exposed.__RUN_STORE__ = useRunStore
+}

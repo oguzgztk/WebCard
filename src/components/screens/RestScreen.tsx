@@ -100,7 +100,7 @@ export function RestScreen({ run, onHeal, onSkip, onUpgradeCard }: Props) {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex flex-col items-center gap-4 overflow-hidden"
+                  className="flex flex-col items-center gap-4 overflow-hidden px-3 pt-3"
                 >
                   <div className="flex items-center gap-4 sm:gap-8">
                     <CardInteractive definition={preview} size="normal" />

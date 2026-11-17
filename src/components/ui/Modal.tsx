@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 import { cn } from '@/lib/cn'
 
@@ -11,7 +12,11 @@ type Props = Readonly<{
   className?: string
 }>
 
-/** Basit modal — Esc ve arka plana tıklama ile kapanır. */
+/**
+ * Basit modal — Esc ve arka plana tıklama ile kapanır.
+ * `document.body`'ye portal ile çizilir: `backdrop-filter`/`transform` taşıyan ataların
+ * `position: fixed` için yeni kapsayıcı oluşturup modalı kırpmasını önler.
+ */
 export function Modal({ open, onClose, title, children, className }: Props) {
   useEffect(() => {
     if (!open) return
@@ -25,7 +30,7 @@ export function Modal({ open, onClose, title, children, className }: Props) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [open, onClose])
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -67,6 +72,7 @@ export function Modal({ open, onClose, title, children, className }: Props) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
