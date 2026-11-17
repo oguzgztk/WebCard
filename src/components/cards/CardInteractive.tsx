@@ -1,5 +1,7 @@
-import { motion } from 'framer-motion'
+import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { memo, useState } from 'react'
+
+import { CardFrame } from '@/components/cards/CardFrame'
 
 import { describeCard, KEYWORD_HELP, type CardTextContext } from '@/game/cardText'
 import type { CardDefinition, CardRarity, CardType } from '@/game/types'
@@ -21,7 +23,12 @@ export type CardInteractiveProps = {
   onInteract?: () => void
   /** El içi düzen animasyonu için. */
   layoutId?: string
+  /** İmleci izleyen 3D eğilme + parlama (varsayılan açık). */
+  tilt?: boolean
 }
+
+/** Dokunmatik cihazda eğilme kapalı (parmak altında kart titremesin). */
+const finePointer = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches
 
 const TYPE_LABEL: Record<CardType, string> = { attack: 'Saldırı', skill: 'Beceri', power: 'Güç' }
 
@@ -66,8 +73,24 @@ function CardInteractiveImpl({
   textContext,
   onInteract,
   layoutId,
+  tilt = true,
 }: CardInteractiveProps) {
   const s = SIZES[size]
+  const rare = definition.rarity === 'rare'
+
+  // 3D eğilme: imleç konumu (0..1) → yaylı rotateX/rotateY; parlama ve holo bu değerleri izler
+  const px = useMotionValue(0.5)
+  const py = useMotionValue(0.5)
+  const springCfg = { stiffness: 260, damping: 22, mass: 0.6 }
+  const rotateX = useSpring(useTransform(py, [0, 1], [11, -11]), springCfg)
+  const rotateY = useSpring(useTransform(px, [0, 1], [-13, 13]), springCfg)
+  const shineX = useTransform(px, (v) => `${v * 100}%`)
+  const shineY = useTransform(py, (v) => `${v * 100}%`)
+  const shine = useMotionTemplate`radial-gradient(circle at ${shineX} ${shineY}, rgb(255 255 255/0.28), transparent 55%)`
+  const holoPos = useMotionTemplate`${shineX} ${shineY}`
+  const [hovered, setHovered] = useState(false)
+  const tiltOn = tilt && !disabled
+
   const [artFailed, setArtFailed] = useState(false)
   const artSrc = artFailed ? null : getCardArtSrc(definition)
   const parts = describeCard(definition, textContext)
@@ -96,9 +119,28 @@ function CardInteractiveImpl({
           onInteract?.()
         }
       }}
-      style={{ ['--card-glow' as string]: glow }}
+      onPointerMove={(e) => {
+        if (!tiltOn || !finePointer()) return
+        const r = e.currentTarget.getBoundingClientRect()
+        px.set((e.clientX - r.left) / r.width)
+        py.set((e.clientY - r.top) / r.height)
+        if (!hovered) setHovered(true)
+      }}
+      onPointerLeave={() => {
+        px.set(0.5)
+        py.set(0.5)
+        setHovered(false)
+      }}
+      style={{
+        ['--card-glow' as string]: glow,
+        rotateX: tiltOn ? rotateX : 0,
+        rotateY: tiltOn ? rotateY : 0,
+        transformPerspective: 700,
+      }}
       className={cn(
-        'group relative isolate flex select-none flex-col overflow-visible rounded-xl border bg-gradient-to-b text-left',
+        'group relative isolate flex select-none flex-col overflow-visible rounded-xl border bg-gradient-to-b text-left [transform-style:preserve-3d]',
+        definition.rarity === 'rare' && 'border-[#c8a040]/70 shadow-[0_0_24px_-6px_rgb(232_190_80/0.55)]',
+        definition.rarity === 'uncommon' && 'border-[#8a9ab8]/60',
         'shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_10px_26px_-8px_rgb(0_0_0/0.75)]',
         interactive && 'cursor-pointer hover:shadow-[0_0_0_1px_var(--card-glow),0_18px_40px_-10px_rgb(0_0_0/0.8),0_0_30px_-4px_var(--card-glow)]',
         s.shell,
@@ -107,6 +149,32 @@ function CardInteractiveImpl({
         emphasize && 'z-10 -translate-y-3 shadow-[0_0_0_2px_rgb(212_175_55/0.95),0_0_36px_-4px_rgb(212_175_55/0.6)]',
       )}
     >
+      <CardFrame rarity={definition.rarity} type={definition.type} upgraded={definition.isUpgraded} />
+
+      {/* Efsanevi: imleçle kayan holografik folyo */}
+      {rare && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit] mix-blend-color-dodge"
+          style={{
+            backgroundImage:
+              'linear-gradient(115deg, transparent 20%, rgb(255 80 180/0.35) 35%, rgb(80 220 255/0.35) 48%, rgb(255 240 120/0.35) 60%, transparent 78%)',
+            backgroundSize: '250% 250%',
+            backgroundPosition: holoPos,
+            opacity: hovered ? 0.55 : 0.22,
+          }}
+        />
+      )}
+
+      {/* İmleci izleyen parlama */}
+      {tiltOn && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[7] rounded-[inherit] transition-opacity duration-200"
+          style={{ background: shine, opacity: hovered ? 1 : 0 }}
+        />
+      )}
+
       {/* Maliyet */}
       <span
         className={cn(
@@ -121,12 +189,18 @@ function CardInteractiveImpl({
       </span>
 
       {/* İsim */}
-      <div className="flex shrink-0 items-center justify-center gap-1 px-4 pb-1 pt-0.5">
+      <div
+        className={cn(
+          'relative z-[8] flex shrink-0 items-center justify-center gap-1 px-4 pb-1 pt-0.5',
+          rare && 'mx-1 rounded-sm bg-gradient-to-r from-transparent via-[#5a3a0a]/80 to-transparent',
+          definition.type === 'power' && !rare && 'mx-1 rounded-sm bg-gradient-to-r from-transparent via-[#3a2050]/70 to-transparent',
+        )}
+      >
         <p
           className={cn(
             'truncate text-center font-display font-semibold leading-tight tracking-tight',
             s.name,
-            definition.isUpgraded ? 'text-[#a8e08a]' : 'text-[#f0e8dc]',
+            definition.isUpgraded ? 'text-[#a8e08a]' : rare ? 'text-[#ffe8a8] drop-shadow-[0_0_6px_rgb(255_200_80/0.6)]' : 'text-[#f0e8dc]',
           )}
         >
           {definition.name}

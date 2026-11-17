@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { CollectionModal } from '@/components/ui/CollectionModal'
 import { HowToPlay } from '@/components/ui/HowToPlay'
 import { SettingsButton } from '@/components/ui/SettingsButton'
 import { ALL_CHARACTERS, DEMIRCI, QUICK_BATTLE_DECK } from '@/data/characters'
@@ -49,6 +50,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
   const meta = meta0
   // İlk ziyarette rehber kendiliğinden açılır.
   const [helpOpen, setHelpOpen] = useState(() => meta.runsStarted === 0 && !hasSeenHelp())
+  const [collectionOpen, setCollectionOpen] = useState(false)
   const closeHelp = () => {
     markHelpSeen()
     setHelpOpen(false)
@@ -63,6 +65,15 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
       <div className="absolute right-4 top-4 flex gap-2">
         <button
           type="button"
+          onClick={() => setCollectionOpen(true)}
+          title="Kart Koleksiyonu"
+          aria-label="Kart Koleksiyonu"
+          className="flex h-9 items-center gap-1.5 rounded-full border border-[#3f3a34]/80 bg-black/40 px-3 text-[12px] font-semibold text-[#a89f92] transition hover:border-[#6a5f4f] hover:text-[#f2eae1]"
+        >
+          🂠 Koleksiyon
+        </button>
+        <button
+          type="button"
           onClick={() => setHelpOpen(true)}
           title="Nasıl Oynanır"
           aria-label="Nasıl Oynanır"
@@ -73,6 +84,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
         <SettingsButton />
       </div>
       <HowToPlay open={helpOpen} onClose={closeHelp} />
+      <CollectionModal open={collectionOpen} onClose={() => setCollectionOpen(false)} />
       <div className="relative w-full max-w-xl">
         {/* Başlık */}
         <div className="mb-8 text-center">

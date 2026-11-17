@@ -36,7 +36,8 @@ npm run dev
 - **İki karakter:** *Demirci* (Güç & Savunma — blok biriktir, Güç ile ölçeklen) ve *Gölge* (Hız & Zehir — ucuz kartlar, zehri yığ ve katla). Her birinin başlangıç destesi, yadigârı ve ödül havuzu ayrı.
 - **İki perde:** *Zindan* (boss: Gölge Efendisi) ve *Kemik Mahzenleri* (boss: Kemik Ejderi); her biri 13 katlık dallanan harita — savaş, elit, olay, kamp ateşi, tüccar, hazine. Perde bossundan sonra bedelli ama güçlü bir **boss yadigârı** seçilir.
 - **Savaş:** Düşman niyetleri gerçek hasarı gösterir; birden çok düşmanlı karşılaşmalar, hedef seçimi, adım adım oynanan düşman turu.
-- **Kartlar:** 42 kart + yükseltilmiş sürümleri; 14 düşman türü, 11 olay. Açıklamalar etkilerden otomatik üretilir ve savaşta Güç/Zayıf/Savunmasız/Çeviklik'e göre canlı güncellenir.
+- **Kartlar:** 54 kart + yükseltilmiş sürümleri; 22 düşman türü (çoğu Türk folklorundan: Şahmeran, Tepegöz, Karakoncolos, Gulyabani, Albastı…), 11 olay.
+- **Kart tasarımları:** nadirliğe göre çerçeve — demir (başlangıç), bronz + perçin (yaygın), gümüş kıvrımlar + mavi taş (nadir), içe kıvrılan altın dikenler + holografik folyo (efsanevi); güç kartlarında rün çerçevesi, yükseltilmişlerde yeşil parıltı. Kartlar imleci izleyerek 3D eğilir ve parlar. Lobide **Kart Koleksiyonu**. Açıklamalar etkilerden otomatik üretilir ve savaşta Güç/Zayıf/Savunmasız/Çeviklik'e göre canlı güncellenir.
 - **Durumlar:** Güç, Çeviklik, Zırh Kaplama, Diken, Zehirli Duman, Savunmasız, Zayıf, Zehir. **Anahtar kelimeler:** Tüket, Geçici, İçgüdü; Güç kartları kalıcı etki bırakır.
 - **Yadigârlar (22, 6'sı boss) ve iksirler (10):** Savaş başı/tur/kart oynama tetikleyicileri; 3 yuvalı iksir çantası.
 - **Tüccar:** Kart (biri indirimli), yadigâr, iksir, kart çıkarma (ziyaret başına bir, fiyat artar).
