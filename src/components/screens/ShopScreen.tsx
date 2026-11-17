@@ -8,7 +8,8 @@ import { DeckViewer } from '@/components/ui/DeckViewer'
 import { Coin } from '@/components/ui/Coin'
 import { UIButton } from '@/components/ui/UIButton'
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
-import { POTION_MAP, POTION_SLOTS } from '@/data/potions'
+import { POTION_MAP } from '@/data/potions'
+import { potionSlots } from '@/game/runEngine'
 import { potionTooltip } from '@/game/potionText'
 import { RELIC_MAP } from '@/game/relics'
 import type { RunState } from '@/game/runTypes'
@@ -39,7 +40,7 @@ function Price({ price, affordable, onSale }: { price: number; affordable: boole
 }
 
 export function ShopScreen({ run, onBuyCard, onBuyRelic, onBuyPotion, onRemoveCard, onLeave }: Props) {
-  const bagFull = run.potions.length >= POTION_SLOTS
+  const bagFull = run.potions.length >= potionSlots(run) || run.relics.includes('sozu')
   const [removing, setRemoving] = useState(false)
   const relic = run.shopRelic ? RELIC_MAP[run.shopRelic.defId] : null
   const canRemove = !run.shopRemovalUsed && run.gold >= run.shopRemovalPrice

@@ -245,8 +245,9 @@ export function resolveEnemyAction(state: GameState, enemyUid: string): GameStat
         statuses: { ...e.statuses, strength: clampStatusStacks(e.statuses.strength + (intent.value ?? 0)) },
       }))
     case 'apply_player_weak':
-    case 'apply_player_vulnerable': {
-      const key = intent.kind === 'apply_player_weak' ? 'weak' : 'vulnerable'
+    case 'apply_player_vulnerable':
+    case 'apply_player_poison': {
+      const key = intent.kind === 'apply_player_weak' ? 'weak' : intent.kind === 'apply_player_poison' ? 'poison' : 'vulnerable'
       return {
         ...state,
         player: {

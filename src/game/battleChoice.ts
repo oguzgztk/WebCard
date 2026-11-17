@@ -12,6 +12,7 @@ export type BattleChoice = Readonly<{
   playerMaxHp?: number
   relicIds?: ReadonlyArray<string>
   potions?: ReadonlyArray<string>
+  potionSlots?: number
   /** Koşu modunda: savaş ara kaydı anahtarı (düğüm ID'si). Yoksa savaş kaydedilmez. */
   persistKey?: string
   /** Oyuncu paneli için karakter. */

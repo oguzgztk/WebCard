@@ -3,18 +3,22 @@ import { describe, expect, it } from 'vitest'
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
 import { ALL_CHARACTERS } from '@/data/characters'
 import { ENEMY_DEFINITIONS_MAP } from '@/data/enemies'
-import { ENCOUNTERS } from '@/data/encounters'
+import { ACT_COUNT, ACTS } from '@/data/encounters'
 import { EVENT_MAP } from '@/data/events'
 import { MAP_FLOORS } from '@/game/mapGen'
 import { pickRelicReward, RELIC_MAP } from '@/game/relics'
 import {
   applyRelicReward,
+  applyRestHeal,
   applyRestUpgrade,
   applyRewardCard,
   availableNodeIds,
   buyShopCard,
   buyShopPotion,
   dailySeed,
+  potionSlots,
+  restHealAmount,
+  startNextAct,
   eventOutcomeGoldCost,
   generateRun,
   getCardShopPrice,
@@ -37,8 +41,10 @@ describe('veri bütünlüğü', () => {
       expect(RELIC_MAP[c.starterRelicId]).toBeDefined()
       for (const id of c.cardPoolIds) expect(CARD_DEFINITIONS_MAP[id]!.rarity, id).not.toBe('starter')
     }
-    for (const tier of Object.values(ENCOUNTERS)) {
-      for (const e of tier) for (const id of e.enemyDefIds) expect(ENEMY_DEFINITIONS_MAP[id], id).toBeDefined()
+    for (const act of Object.values(ACTS)) {
+      for (const tier of Object.values(act.encounters)) {
+        for (const e of tier) for (const id of e.enemyDefIds) expect(ENEMY_DEFINITIONS_MAP[id], id).toBeDefined()
+      }
     }
   })
 })
@@ -206,5 +212,56 @@ describe('mağaza ve mola', () => {
     const next = applyRestUpgrade(run, 'bash')
     expect(next.deckDefIds).toContain('bash+')
     expect(next.deckDefIds).not.toContain('bash')
+  })
+})
+
+describe('perdeler ve yükseliş', () => {
+  /** Koşuyu ilk perdenin bossuna ışınla. */
+  function atBoss(run: RunState): RunState {
+    const boss = run.nodes.find((n) => n.kind === 'boss')!
+    return { ...run, phase: 'combat', currentNodeId: boss.id }
+  }
+
+  it('act 1 boss leads to boss relics and the act transition', () => {
+    let run = atBoss(generateRun(11, 'demirci'))
+    run = resolveCombatVictory(run, 20)
+    expect(run.phase).toBe('reward')
+    expect(run.pendingRelicReward.length).toBeGreaterThan(0)
+    expect(run.pendingRelicReward.every((id) => RELIC_MAP[id]!.tier === 'boss')).toBe(true)
+    run = applyRewardCard(run, null)
+    run = applyRelicReward(run, run.pendingRelicReward[0]!)
+    expect(run.phase).toBe('act_transition')
+    const act2 = startNextAct(run)
+    expect(act2.act).toBe(2)
+    expect(act2.playerHp).toBe(act2.playerMaxHp)
+    expect(act2.currentNodeId).toBeNull()
+    expect(act2.nodes.find((n) => n.kind === 'boss')!.enemyDefIds).toEqual(['bone_dragon'])
+  })
+
+  it('final act boss ends the run in victory', () => {
+    let run = atBoss({ ...generateRun(11, 'demirci'), act: ACT_COUNT })
+    run = resolveCombatVictory(run, 20)
+    expect(run.phase).toBe('run_victory')
+  })
+
+  it('ascension rules apply', () => {
+    const a0 = generateRun(5, 'demirci', 0)
+    const a10 = generateRun(5, 'demirci', 10)
+    expect(a10.playerHp).toBeLessThan(a0.playerHp)
+    expect(potionSlots(a10)).toBe(potionSlots(a0) - 1)
+    expect(restHealAmount(a10)).toBeLessThan(restHealAmount(a0))
+    const boss10 = a10.nodes.find((n) => n.kind === 'boss')!
+    expect(boss10.enemyStrength).toBe(2)
+    expect(boss10.enemyHpScale).toBeGreaterThan(a0.nodes.find((n) => n.kind === 'boss')!.enemyHpScale)
+  })
+
+  it('ectoplasm blocks gold; coffee blocks resting', () => {
+    let run = generateRun(9, 'demirci')
+    run = { ...run, relics: [...run.relics, 'ectoplasm'] }
+    run = selectNode(run, availableNodeIds(run)[0]!)
+    const after = resolveCombatVictory(run, 50)
+    expect(after.gold).toBe(run.gold)
+    const rest: RunState = { ...generateRun(3, 'demirci'), phase: 'rest', playerHp: 10, relics: ['coffee_dripper'] }
+    expect(applyRestHeal(rest)).toBe(rest)
   })
 })

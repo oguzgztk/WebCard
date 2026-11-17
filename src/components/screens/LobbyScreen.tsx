@@ -6,15 +6,15 @@ import { SettingsButton } from '@/components/ui/SettingsButton'
 import { ALL_CHARACTERS, DEMIRCI, QUICK_BATTLE_DECK } from '@/data/characters'
 import { ENEMY_DEFINITIONS_MAP } from '@/data/enemies'
 import type { BattleChoice } from '@/game/battleChoice'
-import type { Difficulty } from '@/game/runTypes'
-import { hasSeenHelp, loadMeta, markHelpSeen } from '@/game/store/persistence'
+import { ASCENSION_RULES, ascensionLabel, MAX_ASCENSION } from '@/game/ascension'
+import { hasSeenHelp, loadMeta, markHelpSeen, unlockedAscension } from '@/game/store/persistence'
 import { getEnemyArtSrc } from '@/game/visuals'
 import { sfx } from '@/lib/audio'
 import { cn } from '@/lib/cn'
 
 type Props = Readonly<{
   onStartBattle: (choice: BattleChoice) => void
-  onStartRun: (characterId: string, difficulty: Difficulty, daily: boolean) => void
+  onStartRun: (characterId: string, ascension: number, daily: boolean) => void
   onContinueRun: () => void
   hasSavedRun: boolean
 }>
@@ -41,9 +41,12 @@ const PRESETS: readonly Preset[] = [
 
 export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSavedRun }: Props) {
   const [view, setView] = useState<'main' | 'character'>('main')
-  const [difficulty, setDifficulty] = useState<Difficulty>('normal')
+  const meta0 = useMemo(() => loadMeta(), [])
+  const maxAsc = unlockedAscension(meta0, MAX_ASCENSION)
+  // Son açılan seviyeden başla (ilk kez açılan seviye zorlayıcı bir hedef olsun)
+  const [ascension, setAscension] = useState(() => Math.max(0, maxAsc))
   const [daily, setDaily] = useState(false)
-  const meta = useMemo(() => loadMeta(), [])
+  const meta = meta0
   // İlk ziyarette rehber kendiliğinden açılır.
   const [helpOpen, setHelpOpen] = useState(() => meta.runsStarted === 0 && !hasSeenHelp())
   const closeHelp = () => {
@@ -80,7 +83,8 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
           </h1>
           {meta.runsStarted > 0 && (
             <p className="mt-2 text-[11px] tracking-wide text-[#6a6050]">
-              {meta.runsStarted} koşu · {meta.wins} zafer{meta.hardWins ? ` (${meta.hardWins} zor)` : ''} · en iyi kat {meta.bestFloor}
+              {meta.runsStarted} koşu · {meta.wins} zafer
+              {meta.highestAscensionWon > 0 ? ` · en yüksek Yükseliş ${meta.highestAscensionWon}` : ''} · en iyi kat {meta.bestFloor}
             </p>
           )}
         </div>
@@ -229,32 +233,50 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                 </p>
               </div>
 
-              <div className="mx-auto flex rounded-lg border border-[#3a342b] bg-black/40 p-1" role="radiogroup" aria-label="Zorluk">
-                {(
-                  [
-                    ['normal', 'Normal', 'Dengeli bir yolculuk'],
-                    ['hard', 'Zor', 'Düşmanlar %12 daha dayanıklı ve +1 Güç ile başlar'],
-                  ] as const
-                ).map(([value, label, hint]) => (
+              {/* Yükseliş seçici */}
+              <div className="mx-auto w-full max-w-sm rounded-xl border border-[#3a342b] bg-black/40 p-3 text-center">
+                <div className="flex items-center justify-between gap-3">
                   <button
-                    key={value}
                     type="button"
-                    role="radio"
-                    aria-checked={difficulty === value}
-                    title={hint}
-                    onClick={() => setDifficulty(value)}
-                    className={cn(
-                      'rounded-md px-4 py-1.5 text-[12px] font-semibold transition',
-                      difficulty === value
-                        ? value === 'hard'
-                          ? 'bg-[#5a1a12] text-[#ffb4a0]'
-                          : 'bg-[#3a2e18] text-[#f0d890]'
-                        : 'text-[#6a6258] hover:text-[#a89f92]',
-                    )}
+                    aria-label="Yükselişi azalt"
+                    disabled={ascension <= 0}
+                    onClick={() => setAscension((a) => Math.max(0, a - 1))}
+                    className="h-8 w-8 rounded-full border border-[#4a4030] text-[#c4a054] transition enabled:hover:bg-[#2a2010] disabled:opacity-30"
                   >
-                    {label}
+                    −
                   </button>
-                ))}
+                  <div>
+                    <p
+                      className={cn(
+                        'font-display text-[1.15rem] font-semibold',
+                        ascension === 0 ? 'text-[#f0d890]' : 'text-[#ffb4a0]',
+                      )}
+                    >
+                      {ascensionLabel(ascension)}
+                    </p>
+                    <p className="text-[10px] text-[#6a6258]">
+                      {maxAsc <= 0 ? 'Bir koşu kazanınca Yükseliş açılır' : `Açık: 0–${maxAsc}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Yükselişi artır"
+                    disabled={ascension >= maxAsc}
+                    onClick={() => setAscension((a) => Math.min(maxAsc, a + 1))}
+                    className="h-8 w-8 rounded-full border border-[#4a4030] text-[#c4a054] transition enabled:hover:bg-[#2a2010] disabled:opacity-30"
+                  >
+                    +
+                  </button>
+                </div>
+                {ascension > 0 && (
+                  <ul className="mt-2 max-h-28 overflow-y-auto text-left text-[11px] leading-snug text-[#a89f92]">
+                    {ASCENSION_RULES.slice(1, ascension + 1).map((rule, i) => (
+                      <li key={rule} className={cn(i + 1 === ascension && 'font-semibold text-[#ffb4a0]')}>
+                        {i + 1}. {rule}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -268,7 +290,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                     whileTap={{ scale: 0.97 }}
                     onClick={() => {
                       sfx.turnStart()
-                      onStartRun(char.id, difficulty, daily)
+                      onStartRun(char.id, ascension, daily)
                     }}
                     className="group relative flex flex-col overflow-hidden rounded-2xl border text-left shadow-[0_8px_32px_-10px_rgb(0_0_0/0.8)] transition-all"
                     style={{ borderColor: `${char.accentColor}45` }}

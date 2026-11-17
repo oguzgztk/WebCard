@@ -6,9 +6,10 @@
 
 import { nanoid } from 'nanoid'
 
-import { ENCOUNTERS, type EncounterTier } from '@/data/encounters'
+import { ACTS, type EncounterTier } from '@/data/encounters'
+import { asc } from '@/game/ascension'
 import { ALL_EVENTS } from '@/data/events'
-import type { Difficulty, MapNode, MapNodeKind } from '@/game/runTypes'
+import type { MapNode, MapNodeKind } from '@/game/runTypes'
 import { rngFloat01, rngStep } from '@/lib/rng'
 
 export const MAP_LANES = 4
@@ -59,7 +60,7 @@ function crosses(a: Edge, b: Edge) {
   return (a.from < b.from && a.to > b.to) || (a.from > b.from && a.to < b.to)
 }
 
-function kindWeights(floor: number): Array<{ item: MapNodeKind; weight: number }> {
+function kindWeights(floor: number, ascension: number): Array<{ item: MapNodeKind; weight: number }> {
   if (floor <= 1) return [{ item: 'combat', weight: 1 }]
   if (floor <= 3) {
     return [
@@ -71,7 +72,7 @@ function kindWeights(floor: number): Array<{ item: MapNodeKind; weight: number }
   return [
     { item: 'combat', weight: 44 },
     { item: 'event', weight: 20 },
-    { item: 'elite', weight: 14 },
+    { item: 'elite', weight: asc(ascension, 1) ? 22 : 14 },
     { item: 'rest', weight: 12 },
     { item: 'shop', weight: 10 },
   ]
@@ -80,19 +81,29 @@ function kindWeights(floor: number): Array<{ item: MapNodeKind; weight: number }
 /** Aynı yolda art arda gelmemesi gereken türler. */
 const NO_REPEAT: ReadonlySet<MapNodeKind> = new Set(['elite', 'rest', 'shop'])
 
-function encounterFor(rng: Rng, tier: EncounterTier): string[] {
-  return [...rng.weighted(ENCOUNTERS[tier].map((e) => ({ item: e.enemyDefIds, weight: e.weight })))]
+function encounterFor(rng: Rng, act: number, tier: EncounterTier): string[] {
+  const pool = (ACTS[act] ?? ACTS[1]!).encounters[tier]
+  return [...rng.weighted(pool.map((e) => ({ item: e.enemyDefIds, weight: e.weight })))]
 }
 
-/** Kat ve zorluğa göre düşman can çarpanı. */
-export function enemyHpScaleFor(floor: number, kind: MapNodeKind, difficulty: Difficulty) {
-  const base = kind === 'boss' ? 1 : 1 + floor * 0.05
-  return Math.round(base * (difficulty === 'hard' ? 1.12 : 1) * 100) / 100
+/** Kat, düğüm türü ve Yükseliş'e göre düşman can çarpanı. */
+export function enemyHpScaleFor(floor: number, kind: MapNodeKind, ascension = 0) {
+  let scale = kind === 'boss' ? 1 : 1 + floor * 0.05
+  if (kind === 'combat' && asc(ascension, 2)) scale *= 1.1
+  if (kind === 'boss' && asc(ascension, 4)) scale *= 1.1
+  return Math.round(scale * 100) / 100
 }
 
-export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { nodes: MapNode[]; nextSeed: number } {
+/** Düğüm türü ve Yükseliş'e göre düşmanların savaş başı Güç bonusu. */
+export function enemyStrengthFor(kind: MapNodeKind, ascension = 0) {
+  if (kind === 'elite') return asc(ascension, 3) ? 1 : 0
+  if (kind === 'combat') return asc(ascension, 7) ? 1 : 0
+  if (kind === 'boss') return asc(ascension, 10) ? 2 : 0
+  return 0
+}
+
+export function generateMap(seed: number, ascension = 0, act = 1): { nodes: MapNode[]; nextSeed: number } {
   const rng = new Rng(seed)
-  const enemyStrength = difficulty === 'hard' ? 1 : 0
 
   // 1) Yolları yürü → (kat, sütun) düğümleri ve bağlantılar
   const occupied: Array<Set<number>> = Array.from({ length: REST_FLOOR + 1 }, () => new Set())
@@ -139,9 +150,9 @@ export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { 
     floor: BOSS_FLOOR,
     lane: 1.5,
     kind: 'boss',
-    enemyDefIds: encounterFor(rng, 'boss'),
-    enemyHpScale: enemyHpScaleFor(BOSS_FLOOR, 'boss', difficulty),
-    enemyStrength,
+    enemyDefIds: encounterFor(rng, act, 'boss'),
+    enemyHpScale: enemyHpScaleFor(BOSS_FLOOR, 'boss', ascension),
+    enemyStrength: enemyStrengthFor('boss', ascension),
     next: [],
     seed: rng.raw(),
     visited: false,
@@ -163,15 +174,15 @@ export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { 
     else if (n.floor === REST_FLOOR) n.kind = 'rest'
     else {
       const parentKinds = new Set((parents.get(n.id) ?? []).map((p) => p.kind))
-      const options = kindWeights(n.floor).filter((o) => o.weight > 0 && !(NO_REPEAT.has(o.item) && parentKinds.has(o.item)))
+      const options = kindWeights(n.floor, ascension).filter((o) => o.weight > 0 && !(NO_REPEAT.has(o.item) && parentKinds.has(o.item)))
       n.kind = rng.weighted(options.length ? options : [{ item: 'combat' as MapNodeKind, weight: 1 }])
     }
 
     if (n.kind === 'combat' || n.kind === 'elite') {
       const tier: EncounterTier = n.kind === 'elite' ? 'elite' : n.floor < 3 ? 'easy' : 'normal'
-      n.enemyDefIds = encounterFor(rng, tier)
-      n.enemyHpScale = enemyHpScaleFor(n.floor, n.kind, difficulty)
-      n.enemyStrength = enemyStrength
+      n.enemyDefIds = encounterFor(rng, act, tier)
+      n.enemyHpScale = enemyHpScaleFor(n.floor, n.kind, ascension)
+      n.enemyStrength = enemyStrengthFor(n.kind, ascension)
     }
     if (n.kind === 'event') n.eventId = ALL_EVENTS[rng.int(ALL_EVENTS.length)]!.id
   }

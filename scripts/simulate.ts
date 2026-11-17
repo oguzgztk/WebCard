@@ -25,9 +25,10 @@ import {
   resolveCombatVictory,
   resolveEventChoice,
   selectNode,
+  startNextAct,
 } from '@/game/runEngine'
 import { EVENT_MAP } from '@/data/events'
-import type { Difficulty, RunState } from '@/game/runTypes'
+import type { RunState } from '@/game/runTypes'
 import type { CardDefinition, GameState } from '@/game/types'
 import { isUpgradeable } from '@/data/cards'
 
@@ -121,12 +122,12 @@ function botCombat(run: RunState, seed: number) {
 type EncStat = { n: number; hpLost: number; deaths: number }
 const encounters = new Map<string, EncStat>()
 
-function simulateRun(seed: number, character: string, difficulty: Difficulty) {
-  let run = generateRun(seed, character, difficulty)
+function simulateRun(seed: number, character: string, ascension: number) {
+  let run = generateRun(seed, character, ascension)
   let rng = seed
   const rand = () => ((rng = (rng * 16807) % 2147483647) / 2147483647)
 
-  for (let step = 0; step < 200; step++) {
+  for (let step = 0; step < 400; step++) {
     if (run.phase === 'run_victory' || run.phase === 'run_defeat') break
     switch (run.phase) {
       case 'map': {
@@ -142,7 +143,7 @@ function simulateRun(seed: number, character: string, difficulty: Difficulty) {
         const node = currentNode(run)!
         const before = run.playerHp
         const g = botCombat(run, node.seed)
-        const key = `${node.kind}:${node.enemyDefIds.join('+')}`
+        const key = `${run.act}:${node.kind}:${node.enemyDefIds.join('+')}`
         const st = encounters.get(key) ?? { n: 0, hpLost: 0, deaths: 0 }
         st.n++
         st.hpLost += before - Math.max(0, g.player.hp)
@@ -157,6 +158,9 @@ function simulateRun(seed: number, character: string, difficulty: Difficulty) {
         run = applyRewardCard(run, pick ?? null)
         break
       }
+      case 'act_transition':
+        run = startNextAct(run)
+        break
       case 'relic_reward':
       case 'treasure':
         run = applyRelicReward(run, run.pendingRelicReward[0] ?? null)
@@ -194,22 +198,21 @@ function simulateRun(seed: number, character: string, difficulty: Difficulty) {
 
 // ── Rapor ────────────────────────────────────────────────────────────────────
 
-for (const difficulty of ['normal', 'hard'] as const) {
+const LEVELS = (process.env.ASC ?? '0,5,10').split(',').map(Number)
+for (const ascension of LEVELS) {
   for (const character of ['demirci', 'golge'].filter((c) => !ONLY || c === ONLY)) {
     let wins = 0
     let floors = 0
-    let bossFights = 0
-    const deathFloors: number[] = []
+    let act2 = 0
     for (let i = 0; i < RUNS; i++) {
-      const run = simulateRun(1000 + i * 7919, character, difficulty)
+      const run = simulateRun(1000 + i * 7919, character, ascension)
       if (run.phase === 'run_victory') wins++
-      else deathFloors.push(run.stats.floorsCleared)
       floors += run.stats.floorsCleared
-      if (run.stats.floorsCleared >= 12) bossFights++
+      if (run.act >= 2) act2++
     }
     const pct = (x: number) => `${((x / RUNS) * 100).toFixed(0)}%`
     console.log(
-      `${difficulty.padEnd(6)} ${character.padEnd(8)} kazanma ${pct(wins).padStart(4)}  ort. kat ${(floors / RUNS).toFixed(1)}  boss'a ulaşma ${pct(bossFights)}`,
+      `Y${String(ascension).padEnd(3)} ${character.padEnd(8)} kazanma ${pct(wins).padStart(4)}  ort. kat ${(floors / RUNS).toFixed(1)}  2. perdeye ulaşma ${pct(act2)}`,
     )
   }
 }

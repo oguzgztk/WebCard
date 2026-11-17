@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 
 import { FloatingNumbers } from '@/components/combat/FloatingNumbers'
 import { StatusBadges } from '@/components/ui/StatusBadges'
@@ -20,6 +20,8 @@ type Props = Readonly<{
   hotkey?: number
   /** Kaç düşman var — boyutlandırma için. */
   count: number
+  /** Runik Kubbe: niyetler gizli. */
+  hideIntent?: boolean
 }>
 
 function intentView(intent: EnemyIntent, dmg: number | null): { icon: string; text: string; tone: string; title: string } {
@@ -38,15 +40,20 @@ function intentView(intent: EnemyIntent, dmg: number | null): { icon: string; te
       return { icon: '🥀', text: `${intent.value ?? 0}`, tone: 'text-[#c8a0e8] border-[#4a2a6a]', title: `Sana ${intent.value} Zayıf uygulayacak` }
     case 'apply_player_vulnerable':
       return { icon: '💔', text: `${intent.value ?? 0}`, tone: 'text-[#c8a0e8] border-[#4a2a6a]', title: `Sana ${intent.value} Savunmasız uygulayacak` }
+    case 'apply_player_poison':
+      return { icon: '☠', text: `${intent.value ?? 0}`, tone: 'text-[#8fd46a] border-[#2f5a1f]', title: `Sana ${intent.value} Zehir uygulayacak` }
   }
 }
 
-function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hotkey, count }: Props) {
+function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hotkey, count, hideIntent }: Props) {
   const def = ENEMY_DEFINITIONS_MAP[enemy.defId]
-  const art = getEnemyArtSrc(enemy.defId)
+  const [artFailed, setArtFailed] = useState(false)
+  const art = artFailed ? null : getEnemyArtSrc(enemy.defId)
   const { floaters, hitKey } = useHpDelta(enemy.hp, enemy.block)
   const ratio = Math.max(0, Math.min(1, enemy.hp / Math.max(1, enemy.maxHp)))
-  const intent = intentView(enemy.intent, intentDamage)
+  const intent = hideIntent
+    ? { icon: '🔮', text: '?', tone: 'text-[#a89fc0] border-[#3a3448]', title: 'Runik Kubbe niyetleri gizliyor' }
+    : intentView(enemy.intent, intentDamage)
 
   return (
     <motion.article
@@ -108,6 +115,7 @@ function EnemyPanelImpl({ enemy, intentDamage, targetable, acting, onSelect, hot
             <img
               src={art}
               alt=""
+              onError={() => setArtFailed(true)}
               className="pointer-events-none h-full w-full select-none object-contain [mask-image:radial-gradient(ellipse_at_50%_50%,black_55%,transparent_78%)]"
               draggable={false}
             />

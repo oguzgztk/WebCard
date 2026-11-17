@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 
 import { CombatScreen } from '@/components/combat/CombatScreen'
+import { ActTransitionScreen } from '@/components/screens/ActTransitionScreen'
 import { EventScreen } from '@/components/screens/EventScreen'
 import { LobbyScreen } from '@/components/screens/LobbyScreen'
 import { MapScreen } from '@/components/screens/MapScreen'
@@ -12,7 +13,7 @@ import { RunEndScreen } from '@/components/screens/RunEndScreen'
 import { ShopScreen } from '@/components/screens/ShopScreen'
 import type { BattleChoice } from '@/game/battleChoice'
 import { nodeTitle } from '@/game/nodeText'
-import { currentNode, dailySeed } from '@/game/runEngine'
+import { currentNode, dailySeed, potionSlots } from '@/game/runEngine'
 import type { RunState } from '@/game/runTypes'
 import { useRunStore } from '@/game/store/runStore'
 
@@ -20,7 +21,7 @@ import { useRunStore } from '@/game/store/runStore'
 function runBattle(run: RunState): BattleChoice | null {
   const node = currentNode(run)
   if (run.phase !== 'combat' || !node || !node.enemyDefIds.length) return null
-  const prefix = node.kind === 'boss' ? 'Boss' : node.kind === 'elite' ? 'Elit' : `Kat ${node.floor + 1}`
+  const prefix = node.kind === 'boss' ? 'Boss' : node.kind === 'elite' ? 'Elit' : `${run.act}-${node.floor + 1}`
   return {
     seed: node.seed,
     enemyDefIds: node.enemyDefIds,
@@ -32,6 +33,7 @@ function runBattle(run: RunState): BattleChoice | null {
     playerMaxHp: run.playerMaxHp,
     relicIds: run.relics,
     potions: run.potions,
+    potionSlots: potionSlots(run),
     persistKey: node.id,
     characterId: run.characterId,
     tier: node.kind === 'boss' ? 'boss' : node.kind === 'elite' ? 'elite' : 'normal',
@@ -54,6 +56,8 @@ export default function App() {
         case 'run_victory':
         case 'run_defeat':
           return { key: 'end', el: <RunEndScreen run={run} onContinue={store.abandonRun} /> }
+        case 'act_transition':
+          return { key: `act-${run.act}`, el: <ActTransitionScreen run={run} onContinue={store.nextAct} /> }
         case 'reward':
           return { key: 'reward', el: <RewardScreen run={run} onSelectCard={store.selectRewardCard} /> }
         case 'relic_reward':
@@ -95,7 +99,7 @@ export default function App() {
           break
       }
       return {
-        key: 'map',
+        key: `map-${run.act}`,
         el: <MapScreen run={run} onSelectNode={store.selectNode} onExit={store.exitToMenu} onAbandon={store.abandonRun} />,
       }
     }
@@ -113,8 +117,8 @@ export default function App() {
         <LobbyScreen
           // Her seferinde yeni nesne: aynı hazır savaş tekrar seçilince önceki savaşın durumu görünmesin.
           onStartBattle={(choice) => setQuickBattle({ ...choice })}
-          onStartRun={(characterId, difficulty, daily) =>
-            store.startRun(daily ? dailySeed() : Date.now(), characterId, difficulty, daily)
+          onStartRun={(characterId, ascension, daily) =>
+            store.startRun(daily ? dailySeed() : Date.now(), characterId, ascension, daily)
           }
           onContinueRun={store.loadRun}
           hasSavedRun={store.hasSavedRun()}

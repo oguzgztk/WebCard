@@ -7,8 +7,10 @@ const SECTIONS: Array<{ title: string; body: string[] }> = [
   {
     title: 'Amaç',
     body: [
-      'Zindanın 13 katını aş ve en tepedeki Gölge Efendisi’ni yen.',
+      'İki perdeyi aş: 13 katlık Zindan’ın sonunda Gölge Efendisi, altındaki Kemik Mahzenleri’nde Kemik Ejderi bekliyor.',
       'Haritada parlayan düğümlerden birini seçerek ilerle — her kat bir yol ayrımı.',
+      'Perde bossunu yenince güçlü ama bedelli bir boss yadigârı seçersin ve derinlere inmeden önce iyileşirsin.',
+      'Bir koşuyu kazanınca Yükseliş açılır: her seviye zindanı biraz daha acımasız yapar.',
     ],
   },
   {
@@ -31,7 +33,11 @@ const SECTIONS: Array<{ title: string; body: string[] }> = [
   },
   {
     title: 'Kısayollar',
-    body: ['1–9: kart oyna · E: turu bitir · Esc: iptal', 'Hedef seçerken 1–3: düşman · D/A: çekme/atma destesini gör'],
+    body: [
+      '1–9: kart oyna · E: turu bitir · Esc: iptal',
+      'Hedef seçerken 1–3: düşman · D/A: çekme/atma destesini gör',
+      'Kartı düşmanın üzerine sürükleyerek de oynayabilirsin.',
+    ],
   },
 ]
 

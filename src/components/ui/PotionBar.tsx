@@ -11,14 +11,16 @@ type Props = Readonly<{
   disabled?: boolean
   /** Hedef seçimi bekleyen iksir. */
   selectedIndex?: number | null
+  /** Yuva sayısı (Yükseliş 9'da 2). */
+  slots?: number
   className?: string
 }>
 
 /** İksir yuvaları — boş yuvalar soluk gösterilir. */
-export function PotionBar({ potions, onUse, disabled, selectedIndex, className }: Props) {
+export function PotionBar({ potions, onUse, disabled, selectedIndex, slots = POTION_SLOTS, className }: Props) {
   return (
     <div className={cn('flex items-center gap-1', className)} aria-label="İksirler">
-      {Array.from({ length: POTION_SLOTS }, (_, i) => {
+      {Array.from({ length: Math.max(slots, potions.length) }, (_, i) => {
         const id = potions[i]
         const def = id ? POTION_MAP[id] : undefined
         const interactive = Boolean(def && onUse && !disabled)

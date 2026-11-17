@@ -10,8 +10,10 @@ import { UIButton } from '@/components/ui/UIButton'
 import { POTION_MAP } from '@/data/potions'
 import { SettingsButton } from '@/components/ui/SettingsButton'
 import { CHARACTER_MAP } from '@/data/characters'
+import { ACTS } from '@/data/encounters'
+import { ASCENSION_RULES } from '@/game/ascension'
 import { MAP_FLOORS } from '@/game/mapGen'
-import { currentNode } from '@/game/runEngine'
+import { currentNode, potionSlots } from '@/game/runEngine'
 import type { RunState } from '@/game/runTypes'
 import { useRunStore } from '@/game/store/runStore'
 import { cn } from '@/lib/cn'
@@ -75,22 +77,25 @@ export function RunHud({ run, onExit, className }: Props) {
               </span>
             </HudStat>
           </button>
-          <HudStat label="Kat">
+          <HudStat label={`Perde ${run.act} · Kat`} title={ACTS[run.act]?.name}>
             <span className="text-[#a89f92]">{floor}</span>
             <span className="text-[12px] text-[#5a5040]">/{MAP_FLOORS}</span>
           </HudStat>
-          {run.difficulty === 'hard' && (
-            <span className="hidden rounded border border-[#7a3020] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#ff9a7a] sm:inline">
-              Zor
+          {run.ascension > 0 && (
+            <span
+              title={ASCENSION_RULES.slice(1, run.ascension + 1).map((r, i) => `${i + 1}. ${r}`).join('\n')}
+              className="hidden cursor-help rounded border border-[#7a3020] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#ff9a7a] sm:inline"
+            >
+              Y{run.ascension}
             </span>
           )}
         </div>
-        <PotionBar potions={run.potions} onUse={setPotionIdx} className="hidden sm:flex" />
+        <PotionBar potions={run.potions} slots={potionSlots(run)} onUse={setPotionIdx} className="hidden sm:flex" />
         <SettingsButton />
       </div>
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3">
         <RelicBadgeRow relicIds={run.relics} />
-        <PotionBar potions={run.potions} onUse={setPotionIdx} className="sm:hidden" />
+        <PotionBar potions={run.potions} slots={potionSlots(run)} onUse={setPotionIdx} className="sm:hidden" />
       </div>
       <Modal open={Boolean(potionId)} onClose={() => setPotionIdx(null)} title={potionId ? POTION_MAP[potionId]?.name : ''} className="max-w-sm">
         {potionId && (

@@ -5,7 +5,7 @@ import { CardInteractive } from '@/components/cards/CardInteractive'
 import { RunHud } from '@/components/screens/RunHud'
 import { UIButton } from '@/components/ui/UIButton'
 import { CARD_DEFINITIONS_MAP, getUpgradedDefinition, isUpgradeable } from '@/data/cards'
-import { restHealAmount } from '@/game/runEngine'
+import { canRest, restHealAmount } from '@/game/runEngine'
 import type { RunState } from '@/game/runTypes'
 import type { CardDefinition } from '@/game/types'
 import { sfx } from '@/lib/audio'
@@ -62,8 +62,14 @@ export function RestScreen({ run, onHeal, onSkip, onUpgradeCard }: Props) {
               <RestOption
                 icon="💤"
                 title="Dinlen"
-                text={missing > 0 ? `${Math.min(healAmount, missing)} can iyileş (${run.playerHp} → ${Math.min(run.playerMaxHp, run.playerHp + healAmount)})` : 'Can zaten dolu'}
-                disabled={missing <= 0}
+                text={
+                  !canRest(run)
+                    ? 'Kara Kahve yüzünden gözüne uyku girmiyor'
+                    : missing > 0
+                      ? `${Math.min(healAmount, missing)} can iyileş (${run.playerHp} → ${Math.min(run.playerMaxHp, run.playerHp + healAmount)})`
+                      : 'Can zaten dolu'
+                }
+                disabled={missing <= 0 || !canRest(run)}
                 onClick={() => {
                   sfx.heal()
                   onHeal()

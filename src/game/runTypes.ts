@@ -34,6 +34,8 @@ export type RunPhase =
   | 'shop'
   | 'event'
   | 'treasure'
+  /** Perde bossu yenildi — sonraki perdeye geçiş ekranı. */
+  | 'act_transition'
   | 'run_victory'
   | 'run_defeat'
 
@@ -54,13 +56,14 @@ export interface RunStats {
   goldEarned: number
 }
 
-export type Difficulty = 'normal' | 'hard'
-
 export interface RunState {
   /** Kayıt şeması sürümü — uyumsuz eski kayıtlar yüklenmez. */
   version: 2
   phase: RunPhase
-  difficulty: Difficulty
+  /** Yükseliş seviyesi (0 = Normal). Bkz. `ascension.ts`. */
+  ascension: number
+  /** Şu anki perde (1'den başlar). */
+  act: number
   /** Seçilen karakter ID'si. */
   characterId: string
   /** Koşunun ana tohumu (paylaşılabilir). */

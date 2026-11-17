@@ -39,26 +39,40 @@ export const ALL_RELICS: ReadonlyArray<RelicDefinition> = [
   { id: 'ornamental_fan', name: 'Süslü Yelpaze', tier: 'uncommon', icon: '🪭', description: 'Bir turda her 3 saldırı kartında 4 Blok kazan.' },
   { id: 'letter_opener', name: 'Mektup Açacağı', tier: 'uncommon', icon: '🗡', description: 'Bir turda her 3 beceri kartında tüm düşmanlara 5 hasar.' },
   // Efsanevi
-  { id: 'philosophers_stone', name: 'Felsefe Taşı', tier: 'rare', icon: '💎', description: 'Her tur 1 ekstra Enerji. Düşmanlar savaş başında 1 Güç kazanır.' },
   { id: 'meat_on_the_bone', name: 'Kemikte Et', tier: 'rare', icon: '🍖', description: 'Savaş sonunda canın %50’nin altındaysa 12 can kazan.' },
   { id: 'shuriken', name: 'Shuriken', tier: 'rare', icon: '✴', description: 'Bir turda her 3 saldırı kartında 1 Güç kazan.' },
+  // Boss — perde bossundan sonra seçilir; güçlü ama çoğu bir bedelle gelir
+  { id: 'philosophers_stone', name: 'Felsefe Taşı', tier: 'boss', icon: '💎', description: 'Her tur 1 ekstra Enerji. Düşmanlar savaş başında 1 Güç kazanır.' },
+  { id: 'coffee_dripper', name: 'Kara Kahve', tier: 'boss', icon: '☕', description: 'Her tur 1 ekstra Enerji. Kamp ateşinde artık dinlenemezsin.' },
+  { id: 'runic_dome', name: 'Runik Kubbe', tier: 'boss', icon: '🔮', description: 'Her tur 1 ekstra Enerji. Düşman niyetlerini artık göremezsin.' },
+  { id: 'sozu', name: 'Mühürlü Kavanoz', tier: 'boss', icon: '🏺', description: 'Her tur 1 ekstra Enerji. Artık iksir kazanamazsın.' },
+  { id: 'ectoplasm', name: 'Ektoplazma', tier: 'boss', icon: '👻', description: 'Her tur 1 ekstra Enerji. Artık altın kazanamazsın.' },
+  { id: 'tiny_house', name: 'Küçük Ev', tier: 'boss', icon: '🏠', description: 'Alındığında: Maksimum Can +5, 50 altın ve rastgele 2 kartın yükselir.' },
 ]
+
+/** Her tur +1 Enerji veren boss yadigârları. */
+const ENERGY_RELICS: ReadonlySet<string> = new Set(['philosophers_stone', 'coffee_dripper', 'runic_dome', 'sozu', 'ectoplasm'])
+
+export const hasRelic = (relics: ReadonlyArray<string>, id: string) => relics.includes(id)
 
 export const RELIC_MAP: Record<string, RelicDefinition> = Object.fromEntries(ALL_RELICS.map((r) => [r.id, r]))
 
 const TIER_WEIGHT: Record<RelicTier, number> = { common: 6, uncommon: 3, rare: 1, boss: 0 }
 
-/** Ödül/mağaza için `count` relic seç — tekrar yok, ağırlıklı tier, sahip olunanlar hariç. */
+/**
+ * `count` relic seç — tekrar yok, ağırlıklı tier, sahip olunanlar hariç.
+ * Varsayılan havuz boss yadigârlarını içermez; `tiers: ['boss']` yalnızca onları seçer.
+ */
 export function pickRelicReward(
   seed: number,
   alreadyOwned: ReadonlyArray<string>,
   count = 3,
-  minTier?: RelicTier,
+  opts: { tiers?: ReadonlyArray<RelicTier> } = {},
 ): { relics: ReadonlyArray<string>; nextSeed: number } {
-  const order: RelicTier[] = ['common', 'uncommon', 'rare', 'boss']
-  const minIdx = minTier ? order.indexOf(minTier) : 0
-  const pool = ALL_RELICS.filter((r) => !alreadyOwned.includes(r.id) && order.indexOf(r.tier) >= minIdx).flatMap(
-    (r) => Array<string>(TIER_WEIGHT[r.tier]).fill(r.id),
+  const tiers = opts.tiers ?? ['common', 'uncommon', 'rare']
+  const weight = (t: RelicTier) => (opts.tiers ? 1 : TIER_WEIGHT[t])
+  const pool = ALL_RELICS.filter((r) => !alreadyOwned.includes(r.id) && tiers.includes(r.tier)).flatMap((r) =>
+    Array<string>(weight(r.tier)).fill(r.id),
   )
   if (pool.length === 0) return { relics: [], nextSeed: seed }
 
@@ -144,10 +158,8 @@ export function applyRelicsOnTurnStart(state: GameState, relicIds: ReadonlyArray
       case 'lantern':
         if (next.playerTurnCount === 0) next = gainEnergy(next, 1)
         break
-      case 'philosophers_stone':
-        next = gainEnergy(next, 1)
-        break
     }
+    if (ENERGY_RELICS.has(id)) next = gainEnergy(next, 1)
   }
   return next
 }
@@ -207,6 +219,10 @@ export function applyRelicsOnCombatEnd(run: RunState, relicIds: ReadonlyArray<st
 export function applyRelicOnPickup(run: RunState, relicId: string): RunState {
   if (relicId === 'strawberry') {
     return { ...run, playerMaxHp: run.playerMaxHp + 7, playerHp: run.playerHp + 7 }
+  }
+  if (relicId === 'tiny_house') {
+    // Kart yükseltmesi koşu motorunda (bkz. runEngine.applyRelicReward)
+    return { ...run, playerMaxHp: run.playerMaxHp + 5, playerHp: run.playerHp + 5, gold: run.gold + 50 }
   }
   return run
 }

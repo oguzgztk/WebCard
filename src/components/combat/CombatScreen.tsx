@@ -47,6 +47,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
   const activeBattle = useGameStore((s) => s.battle)
 
   const runMode = Boolean(onVictory)
+  const intentsHidden = battle.relicIds?.includes('runic_dome') ?? false
   const [pile, setPile] = useState<Pile>(null)
   const shake = useAnimationControls()
 
@@ -192,6 +193,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
         {runMode && (
           <PotionBar
             potions={game.potions}
+            slots={battle.potionSlots}
             onUse={tapPotion}
             disabled={!playerTurn}
             selectedIndex={targetMode?.potionIndex ?? null}
@@ -227,6 +229,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
                 key={enemy.uid}
                 enemy={enemy}
                 count={game.enemies.length}
+                hideIntent={intentsHidden}
                 intentDamage={intentHitDamage(game, enemy)}
                 targetable={Boolean(targetMode) && playerTurn}
                 acting={actingEnemyUid === enemy.uid}
@@ -261,7 +264,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
               player={game.player}
               characterId={battle.characterId}
               incoming={incoming}
-              showIncoming={game.phase === 'playerTurn'}
+              showIncoming={game.phase === 'playerTurn' && !intentsHidden}
             />
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">

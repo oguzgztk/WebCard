@@ -5,6 +5,7 @@ import { RelicBadgeRow } from '@/components/relics/RelicCard'
 import { DeckViewer } from '@/components/ui/DeckViewer'
 import { UIButton } from '@/components/ui/UIButton'
 import { CHARACTER_MAP } from '@/data/characters'
+import { ascensionLabel } from '@/game/ascension'
 import type { RunState } from '@/game/runTypes'
 import { cn } from '@/lib/cn'
 
@@ -20,7 +21,7 @@ export function RunEndScreen({ run, onContinue }: Props) {
   const [deckOpen, setDeckOpen] = useState(false)
   const s = run.stats
   const score =
-    s.floorsCleared * 10 + s.enemiesKilled * 3 + s.elitesKilled * 15 + Math.floor(s.goldEarned / 4) + (victory ? 200 : 0)
+    s.floorsCleared * 10 + s.enemiesKilled * 3 + s.elitesKilled * 15 + Math.floor(s.goldEarned / 4) + (victory ? 300 : 0) + run.ascension * 50
 
   const rows: Array<[string, number | string]> = [
     ['Geçilen kat', s.floorsCleared],
@@ -62,7 +63,7 @@ export function RunEndScreen({ run, onContinue }: Props) {
         </h1>
         <p className="mt-2 text-[14px] leading-relaxed text-[#8a8070]">
           {victory
-            ? `${character?.name ?? 'Gezgin'}, Gölge Efendisi'ni devirdi${run.difficulty === 'hard' ? ' — üstelik zor modda' : ''}.`
+            ? `${character?.name ?? 'Gezgin'}, Kemik Ejderi'ni devirdi${run.ascension > 0 ? ` — ${ascensionLabel(run.ascension)}` : ''}.`
             : `${character?.name ?? 'Gezgin'} ${s.floorsCleared}. katta düştü. Bir dahaki sefere…`}
         </p>
 
@@ -92,7 +93,7 @@ export function RunEndScreen({ run, onContinue }: Props) {
 
         <p className="mt-1 text-[11px] text-[#6a6050]">
           {run.daily ? 'Günün Koşusu · ' : ''}Tohum: <span className="font-mono">{run.masterSeed}</span>
-          {run.difficulty === 'hard' ? ' · Zor' : ''}
+          {run.ascension > 0 ? ` · ${ascensionLabel(run.ascension)}` : ''}
         </p>
 
         {run.relics.length > 0 && (

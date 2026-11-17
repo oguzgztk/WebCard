@@ -18,8 +18,9 @@ import {
   resolveEventChoice,
   selectNode,
   skipRest,
+  startNextAct,
 } from '@/game/runEngine'
-import type { Difficulty, RunState } from '@/game/runTypes'
+import type { RunState } from '@/game/runTypes'
 import {
   clearCombatSave,
   clearLegacySaves,
@@ -34,7 +35,9 @@ type RunStore = {
   run: RunState | null
   hasSavedRun: () => boolean
   loadRun: () => void
-  startRun: (masterSeed: number, characterId: string, difficulty?: Difficulty, daily?: boolean) => void
+  startRun: (masterSeed: number, characterId: string, ascension?: number, daily?: boolean) => void
+  /** Perde geçiş ekranından sonraki perdeye. */
+  nextAct: () => void
   selectNode: (nodeId: string) => void
   completeCombat: (playerHp: number, stats?: Partial<CombatStats>, potionsLeft?: ReadonlyArray<string>) => void
   defeatRun: (stats?: Partial<CombatStats>) => void
@@ -72,12 +75,14 @@ export const useRunStore = create<RunStore>((set) => ({
     if (saved) set({ run: saved })
   },
 
-  startRun(masterSeed, characterId, difficulty = 'normal', daily = false) {
+  startRun(masterSeed, characterId, ascension = 0, daily = false) {
     clearLegacySaves()
     clearCombatSave()
     updateMeta((m) => ({ ...m, runsStarted: m.runsStarted + 1 }))
-    set({ run: { ...generateRun(masterSeed, characterId, difficulty), daily } })
+    set({ run: { ...generateRun(masterSeed, characterId, ascension), daily } })
   },
+
+  nextAct: () => apply(set, startNextAct),
 
   selectNode: (nodeId) => apply(set, (r) => selectNode(r, nodeId)),
   completeCombat: (hp, stats, potions) => apply(set, (r) => resolveCombatVictory(r, hp, stats, potions)),
@@ -121,7 +126,7 @@ useRunStore.subscribe((state, prev) => {
     updateMeta((m) => ({
       ...m,
       wins: m.wins + (won ? 1 : 0),
-      hardWins: m.hardWins + (won && run.difficulty === 'hard' ? 1 : 0),
+      highestAscensionWon: won ? Math.max(m.highestAscensionWon, run.ascension) : m.highestAscensionWon,
       bestFloor: Math.max(m.bestFloor, run.stats.floorsCleared),
       winsByCharacter: won
         ? { ...m.winsByCharacter, [run.characterId]: (m.winsByCharacter[run.characterId] ?? 0) + 1 }

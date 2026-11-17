@@ -6,10 +6,12 @@
 import { allCardsList, CARD_DEFINITIONS_MAP, getCardRarity, getUpgradedDefinition } from '@/data/cards'
 import { CHARACTER_MAP, DEMIRCI } from '@/data/characters'
 import type { EventOutcome } from '@/data/events'
+import { ACT_COUNT } from '@/data/encounters'
 import { ALL_POTIONS, POTION_MAP, POTION_SLOTS } from '@/data/potions'
-import { generateMap } from '@/game/mapGen'
-import { applyRelicOnPickup, applyRelicsOnCombatEnd, pickRelicReward, RELIC_MAP, type RelicTier } from '@/game/relics'
-import type { Difficulty, MapNode, MapNodeKind, RunState, RunStats, ShopOffer } from '@/game/runTypes'
+import { asc } from '@/game/ascension'
+import { generateMap, MAP_FLOORS } from '@/game/mapGen'
+import { applyRelicOnPickup, applyRelicsOnCombatEnd, hasRelic, pickRelicReward, RELIC_MAP, type RelicTier } from '@/game/relics'
+import type { MapNode, MapNodeKind, RunState, RunStats, ShopOffer } from '@/game/runTypes'
 import type { CardRarity, CombatStats } from '@/game/types'
 import { rngFloat01, sanitizeSeed } from '@/lib/rng'
 
@@ -25,9 +27,12 @@ const GOLD_BY_KIND: Partial<Record<MapNodeKind, [number, number]>> = {
 }
 
 const REWARD_CARD_COUNT = 3
+/** 2. perdede ödül kartının yükseltilmiş gelme şansı. */
+const UPGRADED_REWARD_CHANCE = 0.25
 /** Olaylarda "başlangıç kartı çıkar" önce bunları hedefler. */
 const BASIC_CARD_IDS: ReadonlySet<string> = new Set(['strike', 'defend', 'dagger', 'deflect'])
 const REST_HEAL_RATIO = 0.3
+const REST_HEAL_RATIO_ASC = 0.25
 export const SHOP_REMOVAL_BASE_PRICE = 75
 const SHOP_REMOVAL_STEP = 25
 const SHOP_CARD_COUNT = 5
@@ -68,9 +73,27 @@ export function dailySeed(date = new Date()): number {
   return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
 }
 
-/** Eski kayıtları güncel şemaya tamamlar. */
+/** Eski kayıtları güncel şemaya tamamlar (eski "Zor" mod ≈ Yükseliş 7). */
 export function normalizeRun(run: RunState): RunState {
-  return { ...run, potions: run.potions ?? [], pendingPotion: run.pendingPotion ?? null, shopPotions: run.shopPotions ?? [] }
+  const legacy = run as RunState & { difficulty?: string }
+  return {
+    ...run,
+    potions: run.potions ?? [],
+    pendingPotion: run.pendingPotion ?? null,
+    shopPotions: run.shopPotions ?? [],
+    ascension: run.ascension ?? (legacy.difficulty === 'hard' ? 7 : 0),
+    act: run.act ?? 1,
+  }
+}
+
+/** İksir çantası kapasitesi (Yükseliş 9'da 2). */
+export function potionSlots(run: Pick<RunState, 'ascension'>) {
+  return asc(run.ascension, 9) ? POTION_SLOTS - 1 : POTION_SLOTS
+}
+
+/** Koşu genelinde kaçıncı kattayız (perdeler toplamı). */
+export function absoluteFloor(run: RunState, node = currentNode(run)) {
+  return (run.act - 1) * MAP_FLOORS + (node ? node.floor + 1 : 0)
 }
 
 function emptyStats(): RunStats {
@@ -103,38 +126,65 @@ function characterPool(run: Pick<RunState, 'characterId'>) {
   return allCardsList.filter((c) => ids.includes(c.id))
 }
 
+/** Altın ekle — Ektoplazma varken altın kazanılmaz. */
 function addGold(run: RunState, amount: number): RunState {
+  if (amount <= 0 || hasRelic(run.relics, 'ectoplasm')) return run
   return { ...run, gold: run.gold + amount, stats: { ...run.stats, goldEarned: run.stats.goldEarned + amount } }
 }
 
-/** Düğüm çözüldü → haritaya dön (boss sonrası koşu biter). */
+/** Düğüm çözüldü → haritaya dön. Perde bossundan sonra geçiş ekranı, son bossta zafer. */
 function returnToMap(run: RunState): RunState {
   const node = currentNode(run)
-  const finished = node?.kind === 'boss'
+  const bossDown = node?.kind === 'boss'
+  const phase = bossDown ? (run.act >= ACT_COUNT ? 'run_victory' : 'act_transition') : 'map'
   return {
     ...run,
-    phase: finished ? 'run_victory' : 'map',
-    stats: { ...run.stats, floorsCleared: Math.max(run.stats.floorsCleared, (node?.floor ?? -1) + 1) },
+    phase,
+    stats: { ...run.stats, floorsCleared: Math.max(run.stats.floorsCleared, absoluteFloor(run, node)) },
   }
+}
+
+/** Destedeki rastgele `count` yükseltilebilir kartı yükselt. */
+function upgradeRandomCards(run: RunState, count: number): RunState {
+  let next = run
+  for (let i = 0; i < count; i++) {
+    const candidates = next.deckDefIds.filter((id) => {
+      const def = CARD_DEFINITIONS_MAP[id]
+      return def && getUpgradedDefinition(def)
+    })
+    if (!candidates.length) break
+    const { float, nextSeed } = rngFloat01(next.rngSeed)
+    next = upgradeOne({ ...next, rngSeed: nextSeed }, candidates[Math.floor(float * candidates.length)]!)
+  }
+  return next
+}
+
+/** Relic'i ekle ve alınma etkisini uygula. */
+function gainRelic(run: RunState, relicId: string): RunState {
+  if (!RELIC_MAP[relicId] || run.relics.includes(relicId)) return run
+  let next = applyRelicOnPickup({ ...run, relics: [...run.relics, relicId] }, relicId)
+  if (relicId === 'tiny_house') next = upgradeRandomCards(next, 2)
+  return next
 }
 
 // ---------------------------------------------------------------------------
 // Koşu oluşturma
 // ---------------------------------------------------------------------------
 
-export function generateRun(masterSeed: number, characterId = 'demirci', difficulty: Difficulty = 'normal'): RunState {
+export function generateRun(masterSeed: number, characterId = 'demirci', ascension = 0): RunState {
   const character = CHARACTER_MAP[characterId] ?? DEMIRCI
   const seed = sanitizeSeed(masterSeed)
-  const { nodes, nextSeed } = generateMap(seed, difficulty)
+  const { nodes, nextSeed } = generateMap(seed, ascension, 1)
 
   const run: RunState = {
     version: 2,
     phase: 'map',
-    difficulty,
+    ascension,
+    act: 1,
     characterId: character.id,
     masterSeed: seed,
     rngSeed: nextSeed,
-    playerHp: character.maxHp,
+    playerHp: asc(ascension, 6) ? Math.floor(character.maxHp * 0.9) : character.maxHp,
     playerMaxHp: character.maxHp,
     deckDefIds: [...character.starterDeckIds],
     gold: 99,
@@ -247,24 +297,48 @@ export function resolveCombatVictory(
   const node = currentNode(run)
   if (!node || run.phase !== 'combat') return run
 
-  const [goldMin, goldMax] = GOLD_BY_KIND[node.kind] ?? [0, 0]
-  const { value: goldGained, nextSeed: s1 } = rngRange(run.rngSeed, goldMin, goldMax)
-  const weights = REWARD_WEIGHTS[node.kind === 'boss' ? 'boss' : node.kind === 'elite' ? 'elite' : 'normal']
-  const { cards, nextSeed: s2 } = pickRewardCards(s1, REWARD_CARD_COUNT, characterPool(run), weights)
+  const stats: RunStats = {
+    ...run.stats,
+    enemiesKilled: run.stats.enemiesKilled + node.enemyDefIds.length,
+    elitesKilled: run.stats.elitesKilled + (node.kind === 'elite' ? 1 : 0),
+    damageDealt: run.stats.damageDealt + (combat?.damageDealt ?? 0),
+    damageTaken: run.stats.damageTaken + (combat?.damageTaken ?? 0),
+    cardsPlayed: run.stats.cardsPlayed + (combat?.cardsPlayed ?? 0),
+  }
+  const potions = [...(potionsLeft ?? run.potions)]
+  const base: RunState = { ...run, stats, potions }
 
+  // Son perdenin bossu: koşu biter (ödül ekranı yok)
+  if (node.kind === 'boss' && run.act >= ACT_COUNT) {
+    return returnToMap({ ...base, playerHp: Math.max(1, playerHpAfterCombat) })
+  }
+
+  const [goldMin, goldMax] = GOLD_BY_KIND[node.kind] ?? [0, 0]
+  const { value: rolledGold, nextSeed: s1 } = rngRange(run.rngSeed, goldMin, goldMax)
+  const goldGained = hasRelic(run.relics, 'ectoplasm') ? 0 : asc(run.ascension, 8) ? Math.floor(rolledGold * 0.75) : rolledGold
+  const weights = REWARD_WEIGHTS[node.kind === 'boss' ? 'boss' : node.kind === 'elite' ? 'elite' : 'normal']
+  const { cards: baseCards, nextSeed: s2 } = pickRewardCards(s1, REWARD_CARD_COUNT, characterPool(run), weights)
+
+  // 2. perde ve sonrası: ödül kartlarının bir kısmı yükseltilmiş gelir
   let seed = s2
+  const cards = baseCards.map((id) => {
+    if (run.act < 2) return id
+    const { float, nextSeed } = rngFloat01(seed)
+    seed = nextSeed
+    return float < UPGRADED_REWARD_CHANCE && CARD_DEFINITIONS_MAP[`${id}+`] ? `${id}+` : id
+  })
+
   let pendingRelicReward: string[] = []
   if (node.kind === 'elite' || node.kind === 'boss') {
-    const { relics, nextSeed } = pickRelicReward(seed, run.relics, 3, node.kind === 'boss' ? 'uncommon' : undefined)
+    const { relics, nextSeed } = pickRelicReward(seed, run.relics, 3, node.kind === 'boss' ? { tiers: ['boss'] } : {})
     pendingRelicReward = [...relics]
     seed = nextSeed
   }
 
-  // İksir düşmesi (çanta doluysa düşmez)
-  const potions = [...(potionsLeft ?? run.potions)]
+  // İksir düşmesi (çanta doluysa veya Mühürlü Kavanoz varsa düşmez)
   let pendingPotion: string | null = null
-  const dropChance = POTION_DROP[node.kind] ?? 0
-  if (dropChance > 0 && potions.length < POTION_SLOTS) {
+  const dropChance = hasRelic(run.relics, 'sozu') ? 0 : (POTION_DROP[node.kind] ?? 0)
+  if (dropChance > 0 && potions.length < potionSlots(run)) {
     const { float, nextSeed } = rngFloat01(seed)
     seed = nextSeed
     if (float < dropChance) {
@@ -275,7 +349,7 @@ export function resolveCombatVictory(
     }
   }
 
-  const healed = applyRelicsOnCombatEnd({ ...run, playerHp: Math.max(1, playerHpAfterCombat) }, run.relics)
+  const healed = applyRelicsOnCombatEnd({ ...base, playerHp: Math.max(1, playerHpAfterCombat) }, run.relics)
 
   return {
     ...addGold(healed, goldGained),
@@ -286,15 +360,6 @@ export function resolveCombatVictory(
     pendingRelicReward,
     potions,
     pendingPotion,
-    stats: {
-      ...run.stats,
-      goldEarned: run.stats.goldEarned + goldGained,
-      enemiesKilled: run.stats.enemiesKilled + node.enemyDefIds.length,
-      elitesKilled: run.stats.elitesKilled + (node.kind === 'elite' ? 1 : 0),
-      damageDealt: run.stats.damageDealt + (combat?.damageDealt ?? 0),
-      damageTaken: run.stats.damageTaken + (combat?.damageTaken ?? 0),
-      cardsPlayed: run.stats.cardsPlayed + (combat?.cardsPlayed ?? 0),
-    },
   }
 }
 
@@ -329,10 +394,34 @@ export function applyRelicReward(run: RunState, relicId: string | null): RunStat
   if (run.phase !== 'relic_reward' && run.phase !== 'treasure') return run
   if (relicId && !run.pendingRelicReward.includes(relicId)) return run
   let next: RunState = run.phase === 'treasure' ? addGold(run, run.pendingRewardGold) : run
-  if (relicId && RELIC_MAP[relicId]) {
-    next = applyRelicOnPickup({ ...next, relics: [...next.relics, relicId] }, relicId)
-  }
+  if (relicId) next = gainRelic(next, relicId)
   return returnToMap({ ...next, pendingRelicReward: [], pendingRewardGold: 0 })
+}
+
+// ---------------------------------------------------------------------------
+// Perde geçişi
+// ---------------------------------------------------------------------------
+
+/** Perde geçişinde iyileşme: tam (Yükseliş 5+: eksik canın %75'i). */
+export function actTransitionHeal(run: RunState) {
+  const missing = run.playerMaxHp - run.playerHp
+  return asc(run.ascension, 5) ? Math.floor(missing * 0.75) : missing
+}
+
+/** Sonraki perdeye geç: yeni harita, iyileşme. */
+export function startNextAct(run: RunState): RunState {
+  if (run.phase !== 'act_transition') return run
+  const act = run.act + 1
+  const { nodes, nextSeed } = generateMap(run.rngSeed, run.ascension, act)
+  return {
+    ...run,
+    phase: 'map',
+    act,
+    nodes,
+    rngSeed: nextSeed,
+    currentNodeId: null,
+    playerHp: run.playerHp + actTransitionHeal(run),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -340,11 +429,16 @@ export function applyRelicReward(run: RunState, relicId: string | null): RunStat
 // ---------------------------------------------------------------------------
 
 export function restHealAmount(run: RunState) {
-  return Math.floor(run.playerMaxHp * REST_HEAL_RATIO)
+  return Math.floor(run.playerMaxHp * (asc(run.ascension, 5) ? REST_HEAL_RATIO_ASC : REST_HEAL_RATIO))
+}
+
+/** Kara Kahve varken dinlenilemez. */
+export function canRest(run: RunState) {
+  return !hasRelic(run.relics, 'coffee_dripper')
 }
 
 export function applyRestHeal(run: RunState): RunState {
-  if (run.phase !== 'rest') return run
+  if (run.phase !== 'rest' || !canRest(run)) return run
   return returnToMap({ ...run, playerHp: Math.min(run.playerMaxHp, run.playerHp + restHealAmount(run)) })
 }
 
@@ -413,12 +507,11 @@ export function buyShopCard(run: RunState, defId: string): RunState {
 export function buyShopRelic(run: RunState): RunState {
   const offer = run.shopRelic
   if (run.phase !== 'shop' || !offer || run.gold < offer.price) return run
-  const next: RunState = { ...run, gold: run.gold - offer.price, relics: [...run.relics, offer.defId], shopRelic: null }
-  return applyRelicOnPickup(next, offer.defId)
+  return gainRelic({ ...run, gold: run.gold - offer.price, shopRelic: null }, offer.defId)
 }
 
 export function buyShopPotion(run: RunState, potionId: string): RunState {
-  if (run.phase !== 'shop' || run.potions.length >= POTION_SLOTS) return run
+  if (run.phase !== 'shop' || run.potions.length >= potionSlots(run) || hasRelic(run.relics, 'sozu')) return run
   const offer = run.shopPotions.find((o) => o.defId === potionId)
   if (!offer || run.gold < offer.price) return run
   return {
@@ -503,21 +596,12 @@ export function resolveEventChoice(run: RunState, outcome: EventOutcome): RunSta
       case 'gainRelic': {
         const { relics, nextSeed } = pickRelicReward(next.rngSeed, next.relics, 1)
         next = { ...next, rngSeed: nextSeed }
-        if (relics[0]) next = applyRelicOnPickup({ ...next, relics: [...next.relics, relics[0]] }, relics[0])
+        if (relics[0]) next = gainRelic(next, relics[0])
         break
       }
-      case 'upgradeRandom': {
-        for (let i = 0; i < effect.amount; i++) {
-          const candidates = next.deckDefIds.filter((id) => {
-            const def = CARD_DEFINITIONS_MAP[id]
-            return def && getUpgradedDefinition(def)
-          })
-          if (!candidates.length) break
-          const { float, nextSeed } = rngFloat01(next.rngSeed)
-          next = upgradeOne({ ...next, rngSeed: nextSeed }, candidates[Math.floor(float * candidates.length)]!)
-        }
+      case 'upgradeRandom':
+        next = upgradeRandomCards(next, effect.amount)
         break
-      }
       case 'removeStarter': {
         for (let i = 0; i < effect.amount; i++) {
           // Önce temel vuruş/savunma kartları, sonra diğer başlangıç kartları

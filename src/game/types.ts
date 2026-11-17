@@ -80,6 +80,8 @@ export type EnemyIntentKind =
   | 'apply_player_weak'
   /** Oyuncuya savunması kırığı (alınan hasarı artırır). */
   | 'apply_player_vulnerable'
+  /** Oyuncuya zehir. */
+  | 'apply_player_poison'
 
 export interface EnemyIntent {
   kind: EnemyIntentKind

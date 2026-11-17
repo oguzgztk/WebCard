@@ -73,16 +73,28 @@ export function clearCombatSave() {
 export interface MetaStats {
   runsStarted: number
   wins: number
-  hardWins: number
   bestFloor: number
   /** Karakter → galibiyet sayısı. */
   winsByCharacter: Record<string, number>
+  /** Kazanılan en yüksek Yükseliş seviyesi (-1: hiç kazanılmadı). Bir üstü açıktır. */
+  highestAscensionWon: number
 }
 
-const EMPTY_META: MetaStats = { runsStarted: 0, wins: 0, hardWins: 0, bestFloor: 0, winsByCharacter: {} }
+const EMPTY_META: MetaStats = { runsStarted: 0, wins: 0, bestFloor: 0, winsByCharacter: {}, highestAscensionWon: -1 }
 
 export function loadMeta(): MetaStats {
-  return { ...EMPTY_META, ...read<MetaStats>(META_KEY) }
+  const raw = read<MetaStats & { hardWins?: number }>(META_KEY)
+  const meta = { ...EMPTY_META, ...raw }
+  // Eski "Zor" galibiyetleri ≈ Yükseliş 7
+  if (raw && raw.highestAscensionWon === undefined) {
+    meta.highestAscensionWon = raw.hardWins ? 7 : raw.wins ? 0 : -1
+  }
+  return meta
+}
+
+/** Seçilebilecek en yüksek Yükseliş seviyesi. */
+export function unlockedAscension(meta: MetaStats, max: number) {
+  return Math.min(max, meta.highestAscensionWon + 1)
 }
 
 export function updateMeta(update: (m: MetaStats) => MetaStats) {

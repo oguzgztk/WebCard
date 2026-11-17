@@ -165,6 +165,15 @@ describe('combatEngine — tur akışı ve durumlar', () => {
     expect(s.enemies).toHaveLength(0)
   })
 
+  it('enemies can poison the player; poison ticks at the start of the player turn', () => {
+    let s = battleWith(many('defend', 10), ['spider'])
+    s = endPlayerTurn(s) // örümcek: saldırı
+    expect(s.enemies[0]!.intent.kind).toBe('apply_player_poison')
+    s = endPlayerTurn(s) // zehir uygulanır, tur başında 1 tik
+    const stacks = s.enemies[0]!.intent.kind ? s.player.statuses.poison : 0
+    expect(stacks).toBeGreaterThan(0)
+  })
+
   it('thorns damage attackers', () => {
     let s = battleWith(many('defend', 10), ['louse'])
     s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, thorns: 3 } } }
