@@ -81,6 +81,30 @@ await at('combat-potions', { phase: 'map', currentNodeId: null }, async () => {
   })
   await page.waitForTimeout(1200)
 })
+await at('act-transition', { phase: 'act_transition', playerHp: 40 })
+await at('act2-combat', {}, async () => {
+  await page.evaluate(() => {
+    const s = window.__RUN_STORE__
+    s.getState().nextAct()
+    const run = s.getState().run
+    // 2. perdede örümcekli bir karşılaşma kur
+    const node = run.nodes.find((n) => n.floor === 0)
+    s.setState({ run: { ...run, nodes: run.nodes.map((n) => (n.id === node.id ? { ...n, kind: 'combat', enemyDefIds: ['spider', 'wraith', 'gargoyle'] } : n)) } })
+    s.getState().selectNode(node.id)
+  })
+  await page.waitForTimeout(1300)
+})
+await at('act2-boss', {}, async () => {
+  await page.evaluate(() => {
+    const s = window.__RUN_STORE__
+    const run = s.getState().run
+    const node = run.nodes.find((n) => n.floor === 0 && n.id !== run.currentNodeId) ?? run.nodes[1]
+    s.setState({ run: { ...run, phase: 'map', currentNodeId: null, nodes: run.nodes.map((n) => (n.id === node.id ? { ...n, floor: 0, kind: 'combat', enemyDefIds: ['bone_dragon'] } : n)) } })
+    s.getState().selectNode(node.id)
+  })
+  await page.waitForTimeout(1300)
+})
+await at('reward-newcards', { phase: 'reward', pendingRewardCards: ['catalyst+', 'blade_fan', 'noxious_fumes'], pendingRewardGold: 20 })
 await at('victory', { phase: 'run_victory', stats: { floorsCleared: 13, enemiesKilled: 21, elitesKilled: 2, damageDealt: 1234, damageTaken: 310, cardsPlayed: 260, goldEarned: 420 } })
 
 console.log(errors.length ? errors.join('\n') : 'Hata yok')

@@ -129,7 +129,7 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
     upgrade: { effects: [{ kind: 'applyStatus', status: 'strength', amount: 3, target: 'self' }] },
   },
   {
-    id: 'spiked_armor', name: 'Dikenli Zırh', cost: 1, type: 'power', rarity: 'uncommon', glyph: '🌵',
+    id: 'spiked_armor', name: 'Dikenli Zırh', cost: 1, type: 'power', rarity: 'uncommon', art: 'spiked_armor', glyph: '🌵',
     effects: [{ kind: 'applyStatus', status: 'thorns', amount: 3, target: 'self' }],
     upgrade: { effects: [{ kind: 'applyStatus', status: 'thorns', amount: 5, target: 'self' }] },
   },
@@ -141,7 +141,7 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
     upgrade: { effects: [{ kind: 'damage', amount: 30, target: 'enemy' }] },
   },
   {
-    id: 'earthquake', name: 'Deprem', cost: 3, type: 'attack', rarity: 'rare', glyph: '⛰',
+    id: 'earthquake', name: 'Deprem', cost: 3, type: 'attack', rarity: 'rare', art: 'earthquake', glyph: '⛰',
     effects: [
       { kind: 'damage', amount: 14, target: 'allEnemies' },
       { kind: 'applyStatus', status: 'vulnerable', amount: 2, target: 'allEnemies' },
@@ -154,7 +154,7 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
     },
   },
   {
-    id: 'forge_spirit', name: 'Örs Ruhu', cost: 2, type: 'power', rarity: 'rare', glyph: '⚒',
+    id: 'forge_spirit', name: 'Örs Ruhu', cost: 2, type: 'power', rarity: 'rare', art: 'forge_spirit', glyph: '⚒',
     effects: [
       { kind: 'applyStatus', status: 'strength', amount: 2, target: 'self' },
       { kind: 'applyStatus', status: 'metallicize', amount: 2, target: 'self' },

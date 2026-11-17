@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="45%" r="58%">
+    <stop offset="0" stop-color="#2a1a1a"/>
+    <stop offset="1" stop-color="#060404"/>
+  </radialGradient>
+  <filter id="grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.75  0 0 0 0.09 0"/>
+  </filter>
+  <filter id="fog" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.022" numOctaves="4" seed="11"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.35  0 0 0 0 0.35  0 0 0 0.32 -0.1"/>
+  </filter>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="2" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="6"/>
+  </filter>
+  <radialGradient id="vig" cx="50%" cy="50%" r="75%">
+    <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0.85"/>
+  </radialGradient>
+
+</defs>
+<rect width="600" height="400" fill="url(#bg)"/>
+<rect width="600" height="400" filter="url(#fog)" opacity="0.3"/>
+
+<defs>
+  <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a9aa4"/><stop offset="0.4" stop-color="#4a4a54"/><stop offset="1" stop-color="#141418"/></linearGradient>
+  <linearGradient id="blade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a5a62"/><stop offset="0.5" stop-color="#c8c8d0"/><stop offset="1" stop-color="#4a4a52"/></linearGradient>
+  <linearGradient id="cape" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a1410"/><stop offset="1" stop-color="#1a0605"/></linearGradient>
+</defs>
+<circle cx="300" cy="150" r="130" fill="#ff3020" opacity="0.08" filter="url(#glow)"/>
+<g filter="url(#rough)" stroke="#0a0a0c" stroke-width="3">
+  <!-- pelerin (yırtık) -->
+  <path d="M200 140 L400 140 L430 380 L400 350 L380 386 L350 352 L320 390 L300 356 L276 392 L252 352 L226 384 L200 348 L170 380 Z" fill="url(#cape)"/>
+  <!-- gövde zırhı -->
+  <path d="M236 150 L364 150 L372 260 L340 300 L260 300 L228 260 Z" fill="url(#plate)"/>
+  <path d="M300 156 L300 296 M244 210 L356 210" stroke="#22222a" stroke-width="2"/>
+  <!-- omuzluklar -->
+  <path d="M190 132 C210 110 250 112 262 140 L250 186 C228 186 200 176 186 160 Z" fill="url(#plate)"/>
+  <path d="M410 132 C390 110 350 112 338 140 L350 186 C372 186 400 176 414 160 Z" fill="url(#plate)"/>
+  <!-- kılıç (yere saplı) -->
+  <path d="M292 210 L308 210 L310 372 L300 392 L290 372 Z" fill="url(#blade)"/>
+  <path d="M296 260 L304 290 L297 318" stroke="#2a2a30" stroke-width="2" fill="none"/>
+  <rect x="262" y="196" width="76" height="14" rx="4" fill="#4a3018"/>
+  <rect x="294" y="160" width="12" height="36" rx="3" fill="#3a2410"/>
+  <circle cx="300" cy="156" r="10" fill="#7a5a20"/>
+  <!-- eller -->
+  <ellipse cx="282" cy="188" rx="18" ry="14" fill="url(#plate)"/>
+  <ellipse cx="318" cy="188" rx="18" ry="14" fill="url(#plate)"/>
+  <!-- miğfer -->
+  <path d="M256 70 C256 36 344 36 344 70 L346 126 C330 140 270 140 254 126 Z" fill="url(#plate)"/>
+  <!-- kırık sorguç -->
+  <path d="M296 36 L304 36 L306 12 L298 4 L294 18 Z" fill="#6a1a14"/>
+</g>
+<path d="M266 96 L334 96 L330 104 L270 104 Z" fill="#000"/>
+<path d="M270 98 L330 98" stroke="#ff4028" stroke-width="4" filter="url(#glow)"/>
+<path d="M272 99 L328 99" stroke="#ffb090" stroke-width="2"/>
+<path d="M300 104 L300 128" stroke="#0a0a0c" stroke-width="3"/>
+
+<rect width="600" height="400" fill="url(#vig)"/>
+<rect width="600" height="400" filter="url(#grain)"/>
+</svg>

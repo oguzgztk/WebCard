@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="45%" r="58%">
+    <stop offset="0" stop-color="#221a2c"/>
+    <stop offset="1" stop-color="#040306"/>
+  </radialGradient>
+  <filter id="grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.75  0 0 0 0.09 0"/>
+  </filter>
+  <filter id="fog" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.022" numOctaves="4" seed="11"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0.42  0 0 0 0 0.36  0 0 0 0 0.52  0 0 0 0.32 -0.1"/>
+  </filter>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="2" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="6"/>
+  </filter>
+  <radialGradient id="vig" cx="50%" cy="50%" r="75%">
+    <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0.85"/>
+  </radialGradient>
+
+</defs>
+<rect width="600" height="400" fill="url(#bg)"/>
+<rect width="600" height="400" filter="url(#fog)" opacity="0.3"/>
+
+<defs>
+  <linearGradient id="dbone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0e6d0"/><stop offset="0.5" stop-color="#a89a80"/><stop offset="1" stop-color="#3a3428"/></linearGradient>
+  <linearGradient id="membrane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a2e6e" stop-opacity="0.95"/><stop offset="1" stop-color="#1a0a22" stop-opacity="0.7"/></linearGradient>
+</defs>
+<circle cx="300" cy="170" r="160" fill="#a050ff" opacity="0.1" filter="url(#glow)"/>
+<!-- kanatlar -->
+<g filter="url(#rough)">
+  <path d="M250 190 L120 40 L40 110 L60 120 L30 190 L70 186 L56 260 L110 236 L130 290 L240 240 Z" fill="url(#membrane)"/>
+  <path d="M350 190 L480 40 L560 110 L540 120 L570 190 L530 186 L544 260 L490 236 L470 290 L360 240 Z" fill="url(#membrane)"/>
+  <g stroke="url(#dbone)" stroke-width="8" stroke-linecap="round" fill="none">
+    <path d="M250 190 L120 40 M120 40 L60 120 M120 40 L70 186 M120 40 L110 236 M120 40 L130 290"/>
+    <path d="M350 190 L480 40 M480 40 L540 120 M480 40 L530 186 M480 40 L490 236 M480 40 L470 290"/>
+  </g>
+</g>
+<!-- omurga + kaburgalar -->
+<g stroke="url(#dbone)" stroke-linecap="round" fill="none" filter="url(#rough)">
+  <path d="M300 200 C300 260 280 310 240 360" stroke-width="14"/>
+  <path d="M296 220 C250 225 240 260 252 280 M300 220 C350 225 360 260 348 280" stroke-width="8"/>
+  <path d="M292 250 C252 256 246 286 258 302 M300 250 C346 256 352 286 340 302" stroke-width="7"/>
+</g>
+<!-- boyun omurları -->
+<g fill="url(#dbone)" stroke="#1a1610" stroke-width="2">
+  <ellipse cx="300" cy="236" rx="16" ry="9"/><ellipse cx="298" cy="256" rx="15" ry="8"/><ellipse cx="294" cy="276" rx="14" ry="8"/>
+</g>
+<!-- pençeler -->
+<g stroke="url(#dbone)" stroke-width="7" stroke-linecap="round" fill="none">
+  <path d="M220 300 L200 340 L186 352 M200 340 L200 360 M200 340 L212 356"/>
+  <path d="M380 300 L400 340 L414 352 M400 340 L400 360 M400 340 L388 356"/>
+</g>
+<!-- kafatası -->
+<g filter="url(#rough)" stroke="#1a1610" stroke-width="3">
+  <path d="M250 120 C250 80 350 80 350 120 L352 170 L330 214 L300 232 L270 214 L248 170 Z" fill="url(#dbone)"/>
+  <!-- boynuzlar -->
+  <path d="M262 98 C230 60 214 30 190 20 C214 50 222 80 248 118 Z" fill="url(#dbone)"/>
+  <path d="M338 98 C370 60 386 30 410 20 C386 50 378 80 352 118 Z" fill="url(#dbone)"/>
+  <!-- çene + dişler -->
+  <path d="M270 214 L300 252 L330 214 Z" fill="#2a2418"/>
+  <path d="M274 214 L280 232 L286 214 Z M292 214 L298 238 L304 214 Z M314 214 L320 232 L326 214 Z" fill="#f4ecd8"/>
+</g>
+<path d="M286 182 L292 196 M314 182 L308 196" stroke="#1a1610" stroke-width="3"/>
+<g fill="#c070ff">
+  <path d="M264 140 L290 148 L268 158 Z" filter="url(#glow)"/><path d="M336 140 L310 148 L332 158 Z" filter="url(#glow)"/>
+  <path d="M268 144 L286 148 L270 154 Z" fill="#f4e0ff"/><path d="M332 144 L314 148 L330 154 Z" fill="#f4e0ff"/>
+</g>
+<path d="M300 240 C292 270 312 290 296 320" stroke="#a060ff" stroke-width="10" opacity="0.25" filter="url(#glow)" fill="none"/>
+
+<rect width="600" height="400" fill="url(#vig)"/>
+<rect width="600" height="400" filter="url(#grain)"/>
+</svg>

@@ -66,12 +66,12 @@ export const GOLGE_CARDS: CardBlueprint[] = [
     upgrade: { effects: [{ kind: 'block', amount: 12 }, { kind: 'draw', amount: 1 }] },
   },
   {
-    id: 'deadly_poison', name: 'Ölümcül Zehir', cost: 1, type: 'skill', rarity: 'common', glyph: '☠',
+    id: 'deadly_poison', name: 'Ölümcül Zehir', cost: 1, type: 'skill', rarity: 'common', art: 'deadly_poison', glyph: '☠',
     effects: [{ kind: 'applyStatus', status: 'poison', amount: 4, target: 'enemy' }],
     upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 6, target: 'enemy' }] },
   },
   {
-    id: 'blade_fan', name: 'Bıçak Yelpazesi', cost: 1, type: 'attack', rarity: 'common', glyph: '✣',
+    id: 'blade_fan', name: 'Bıçak Yelpazesi', cost: 1, type: 'attack', rarity: 'common', art: 'blade_fan', glyph: '✣',
     effects: [{ kind: 'damage', amount: 4, target: 'allEnemies' }, { kind: 'draw', amount: 1 }],
     upgrade: { effects: [{ kind: 'damage', amount: 6, target: 'allEnemies' }, { kind: 'draw', amount: 1 }] },
   },
@@ -114,12 +114,12 @@ export const GOLGE_CARDS: CardBlueprint[] = [
     },
   },
   {
-    id: 'catalyst', name: 'Katalizör', cost: 1, type: 'skill', rarity: 'uncommon', glyph: '⚗',
+    id: 'catalyst', name: 'Katalizör', cost: 1, type: 'skill', rarity: 'uncommon', art: 'catalyst', glyph: '⚗',
     effects: [{ kind: 'multiplyStatus', status: 'poison', factor: 2, target: 'enemy' }], exhaust: true,
     upgrade: { effects: [{ kind: 'multiplyStatus', status: 'poison', factor: 3, target: 'enemy' }] },
   },
   {
-    id: 'footwork', name: 'Ayak Oyunu', cost: 1, type: 'power', rarity: 'uncommon', glyph: '🌀',
+    id: 'footwork', name: 'Ayak Oyunu', cost: 1, type: 'power', rarity: 'uncommon', art: 'footwork', glyph: '🌀',
     effects: [{ kind: 'applyStatus', status: 'dexterity', amount: 2, target: 'self' }],
     upgrade: { effects: [{ kind: 'applyStatus', status: 'dexterity', amount: 3, target: 'self' }] },
   },
@@ -131,7 +131,7 @@ export const GOLGE_CARDS: CardBlueprint[] = [
     upgrade: { cost: 2 },
   },
   {
-    id: 'noxious_fumes', name: 'Zehirli Duman', cost: 1, type: 'power', rarity: 'rare', glyph: '☁',
+    id: 'noxious_fumes', name: 'Zehirli Duman', cost: 1, type: 'power', rarity: 'rare', art: 'noxious_fumes', glyph: '☁',
     effects: [{ kind: 'applyStatus', status: 'noxious', amount: 2, target: 'self' }],
     upgrade: { effects: [{ kind: 'applyStatus', status: 'noxious', amount: 3, target: 'self' }] },
   },

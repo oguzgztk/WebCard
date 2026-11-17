@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 
 import { describeCard, KEYWORD_HELP, type CardTextContext } from '@/game/cardText'
 import type { CardDefinition, CardRarity, CardType } from '@/game/types'
@@ -68,7 +68,8 @@ function CardInteractiveImpl({
   layoutId,
 }: CardInteractiveProps) {
   const s = SIZES[size]
-  const artSrc = getCardArtSrc(definition)
+  const [artFailed, setArtFailed] = useState(false)
+  const artSrc = artFailed ? null : getCardArtSrc(definition)
   const parts = describeCard(definition, textContext)
   const glow = TYPE_GLOW[definition.type]
   const interactive = Boolean(onInteract) && !disabled
@@ -145,6 +146,7 @@ function CardInteractiveImpl({
             alt=""
             loading="lazy"
             decoding="async"
+            onError={() => setArtFailed(true)}
             className="pointer-events-none h-full w-full object-cover object-center"
             draggable={false}
           />
