@@ -29,6 +29,7 @@ export const ALL_RELICS: ReadonlyArray<RelicDefinition> = [
   { id: 'smooth_stone', name: 'Pürüzsüz Taş', tier: 'common', icon: '🪨', description: 'Her savaşın başında 1 Çeviklik kazan.' },
   { id: 'blood_vial', name: 'Kan Şişesi', tier: 'common', icon: '🧪', description: 'Her savaşın başında 3 can kazan.' },
   { id: 'strawberry', name: 'Yaban Çileği', tier: 'common', icon: '🍓', description: 'Alındığında Maksimum Canın 7 artar.' },
+  { id: 'snake_ring', name: 'Yılan Yüzüğü', tier: 'common', icon: '🐍', description: 'Her savaşın başında tüm düşmanlara 2 Zehir uygula.' },
   { id: 'lantern', name: 'Fener', tier: 'common', icon: '🏮', description: 'Her savaşın ilk turunda 1 ekstra Enerji.' },
   // Nadir
   { id: 'burning_blood', name: 'Kızıl Kan', tier: 'uncommon', icon: '🩸', description: 'Her savaşın sonunda 6 can kazan.' },
@@ -111,6 +112,12 @@ export function applyRelicsOnCombatStart(state: GameState, relicIds: ReadonlyArr
         break
       case 'bronze_scales':
         next = addPlayerStatus(next, 'thorns', 3)
+        break
+      case 'snake_ring':
+        next = {
+          ...next,
+          enemies: next.enemies.map((e) => ({ ...e, statuses: { ...e.statuses, poison: e.statuses.poison + 2 } })),
+        }
         break
       case 'blood_vial':
         next = { ...next, player: { ...next.player, hp: Math.min(next.player.maxHp, next.player.hp + 3) } }

@@ -87,7 +87,7 @@ function encounterFor(rng: Rng, tier: EncounterTier): string[] {
 /** Kat ve zorluğa göre düşman can çarpanı. */
 export function enemyHpScaleFor(floor: number, kind: MapNodeKind, difficulty: Difficulty) {
   const base = kind === 'boss' ? 1 : 1 + floor * 0.035
-  return Math.round(base * (difficulty === 'hard' ? 1.15 : 1) * 100) / 100
+  return Math.round(base * (difficulty === 'hard' ? 1.2 : 1) * 100) / 100
 }
 
 export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { nodes: MapNode[]; nextSeed: number } {

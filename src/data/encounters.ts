@@ -23,7 +23,7 @@ export const ENCOUNTERS: Record<EncounterTier, Encounter[]> = {
     { enemyDefIds: ['bat', 'bat', 'bat'], weight: 2 },
     { enemyDefIds: ['cultist', 'bat'], weight: 2 },
     { enemyDefIds: ['louse', 'skeleton'], weight: 1 },
-    { enemyDefIds: ['jaw_worm', 'louse'], weight: 1 },
+    { enemyDefIds: ['jaw_worm', 'bat'], weight: 1 },
   ],
   elite: [
     { enemyDefIds: ['fungibeast'], weight: 1 },

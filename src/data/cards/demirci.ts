@@ -15,8 +15,8 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
   },
   {
     id: 'defend', name: 'Savun', cost: 1, type: 'skill', rarity: 'starter', art: 'shield',
-    effects: [{ kind: 'block', amount: 6 }],
-    upgrade: { effects: [{ kind: 'block', amount: 9 }] },
+    effects: [{ kind: 'block', amount: 7 }],
+    upgrade: { effects: [{ kind: 'block', amount: 10 }] },
   },
   {
     id: 'bash', name: 'Ezici Darbe', cost: 2, type: 'attack', rarity: 'starter', art: 'heavy',
@@ -124,7 +124,7 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
     upgrade: { effects: [{ kind: 'applyStatus', status: 'metallicize', amount: 4, target: 'self' }] },
   },
   {
-    id: 'rage_burst', name: 'Öfke Patlaması', cost: 1, type: 'power', rarity: 'uncommon', art: 'rage_burst',
+    id: 'rage_burst', name: 'Öfke Patlaması', cost: 1, type: 'power', rarity: 'common', art: 'rage_burst',
     effects: [{ kind: 'applyStatus', status: 'strength', amount: 2, target: 'self' }],
     upgrade: { effects: [{ kind: 'applyStatus', status: 'strength', amount: 3, target: 'self' }] },
   },

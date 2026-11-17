@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "preview": "NODE_OPTIONS='--disable-warning=DEP0205' vite preview",
-    "test": "NODE_OPTIONS='--disable-warning=DEP0205' vitest run"
+    "test": "NODE_OPTIONS='--disable-warning=DEP0205' vitest run",
+    "simulate": "vite-node scripts/simulate.ts",
+    "playtest": "node scripts/playtest.mjs",
+    "optimize-images": "node scripts/optimize-images.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

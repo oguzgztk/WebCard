@@ -14,8 +14,8 @@ export const GOLGE_CARDS: CardBlueprint[] = [
   },
   {
     id: 'deflect', name: 'Savuş', cost: 0, type: 'skill', rarity: 'starter', art: 'deflect',
-    effects: [{ kind: 'block', amount: 4 }],
-    upgrade: { effects: [{ kind: 'block', amount: 7 }] },
+    effects: [{ kind: 'block', amount: 3 }],
+    upgrade: { effects: [{ kind: 'block', amount: 6 }] },
   },
   {
     id: 'shadow_step', name: 'Gölge Adımı', cost: 1, type: 'skill', rarity: 'starter', art: 'shadow_step',
@@ -24,8 +24,8 @@ export const GOLGE_CARDS: CardBlueprint[] = [
   },
   {
     id: 'envenom', name: 'Zehirle', cost: 1, type: 'skill', rarity: 'starter', art: 'envenom',
-    effects: [{ kind: 'applyStatus', status: 'poison', amount: 4, target: 'enemy' }],
-    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 6, target: 'enemy' }] },
+    effects: [{ kind: 'applyStatus', status: 'poison', amount: 3, target: 'enemy' }],
+    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 5, target: 'enemy' }] },
   },
 
   // ── Yaygın ────────────────────────────────────────────────────────────────
@@ -67,8 +67,8 @@ export const GOLGE_CARDS: CardBlueprint[] = [
   },
   {
     id: 'deadly_poison', name: 'Ölümcül Zehir', cost: 1, type: 'skill', rarity: 'common', glyph: '☠',
-    effects: [{ kind: 'applyStatus', status: 'poison', amount: 5, target: 'enemy' }],
-    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 7, target: 'enemy' }] },
+    effects: [{ kind: 'applyStatus', status: 'poison', amount: 4, target: 'enemy' }],
+    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 6, target: 'enemy' }] },
   },
   {
     id: 'blade_fan', name: 'Bıçak Yelpazesi', cost: 1, type: 'attack', rarity: 'common', glyph: '✣',
@@ -79,8 +79,8 @@ export const GOLGE_CARDS: CardBlueprint[] = [
   // ── Nadir ─────────────────────────────────────────────────────────────────
   {
     id: 'poison_cloud', name: 'Zehir Bulutu', cost: 2, type: 'skill', rarity: 'uncommon', art: 'poison_cloud',
-    effects: [{ kind: 'applyStatus', status: 'poison', amount: 6, target: 'allEnemies' }],
-    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 8, target: 'allEnemies' }] },
+    effects: [{ kind: 'applyStatus', status: 'poison', amount: 4, target: 'allEnemies' }],
+    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 6, target: 'allEnemies' }] },
   },
   {
     id: 'smoke_bomb', name: 'Duman Bombası', cost: 2, type: 'skill', rarity: 'uncommon', art: 'smoke_bomb',
@@ -103,12 +103,12 @@ export const GOLGE_CARDS: CardBlueprint[] = [
   {
     id: 'crippling_venom', name: 'Kırıcı Zehir', cost: 1, type: 'skill', rarity: 'uncommon', art: 'crippling_venom',
     effects: [
-      { kind: 'applyStatus', status: 'poison', amount: 4, target: 'enemy' },
+      { kind: 'applyStatus', status: 'poison', amount: 3, target: 'enemy' },
       { kind: 'applyStatus', status: 'vulnerable', amount: 2, target: 'enemy' },
     ],
     upgrade: {
       effects: [
-        { kind: 'applyStatus', status: 'poison', amount: 6, target: 'enemy' },
+        { kind: 'applyStatus', status: 'poison', amount: 5, target: 'enemy' },
         { kind: 'applyStatus', status: 'vulnerable', amount: 3, target: 'enemy' },
       ],
     },

@@ -30,7 +30,7 @@ export const DEMIRCI: CharacterDefinition = {
   subtitle: 'Güç & Savunma',
   description:
     'Ağır zırh ve büyük kılıçlarla savaşır. Yüksek can ve blok gücüyle düşmanları ezmeye odaklanır.',
-  maxHp: 80,
+  maxHp: 84,
   starterDeckIds: [
     'strike', 'strike', 'strike', 'strike', 'strike',
     'defend', 'defend', 'defend', 'defend',
@@ -54,7 +54,7 @@ export const GOLGE: CharacterDefinition = {
   subtitle: 'Hız & Zehir',
   description:
     'Gölgede hareket eder; hızlı bıçak darbeleri ve zehirle düşmanları yıpratır. Düşük can ama yüksek tempolu oyun stili.',
-  maxHp: 68,
+  maxHp: 64,
   starterDeckIds: [
     'dagger', 'dagger', 'dagger', 'dagger',
     'deflect', 'deflect', 'deflect',
@@ -67,7 +67,7 @@ export const GOLGE: CharacterDefinition = {
     'poison_cloud', 'smoke_bomb', 'shadow_flurry', 'crippling_venom', 'catalyst', 'footwork', 'mirror_image',
     'assassinate', 'noxious_fumes',
   ],
-  starterRelicId: 'bag_of_prep',
+  starterRelicId: 'snake_ring',
   accentColor: '#6a9a6a',
   icon: '🗡',
   portraitSrc: '/game-art/characters/golge.webp',

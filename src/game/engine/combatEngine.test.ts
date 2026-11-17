@@ -19,6 +19,12 @@ import type { CardInstance, GameState } from '@/game/types'
 
 const many = (id: string, n: number) => Array.from({ length: n }, () => id)
 
+/** Kartın ilk `kind` etkisinin miktarı — testler denge değerlerine bağlanmasın. */
+function amountOf(defId: string, kind: 'block' | 'damage' | 'applyStatus'): number {
+  const e = CARD_DEFINITIONS_MAP[defId]!.effects.find((x) => x.kind === kind)
+  return e && 'amount' in e ? e.amount : 0
+}
+
 function battleWith(deck: string[], enemies: string[] = ['jaw_worm'], seed = 7): GameState {
   return startCombat({ seed, enemyDefIds: enemies, deckDefinitionIds: deck })
 }
@@ -44,8 +50,8 @@ describe('combatEngine — temel', () => {
     let s = battleWith(many('strike', 10))
     const before = s.enemies[0]!.hp
     s = play(s, 'strike')
-    expect(s.enemies[0]!.hp).toBe(before - 8)
-    expect(s.stats.damageDealt).toBe(8)
+    expect(s.enemies[0]!.hp).toBe(before - amountOf('strike', 'damage'))
+    expect(s.stats.damageDealt).toBe(amountOf('strike', 'damage'))
   })
 
   it('cannot play a card without enough energy', () => {
@@ -60,7 +66,8 @@ describe('combatEngine — temel', () => {
     s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, strength: 2 } } }
     const before = s.enemies[0]!.hp
     s = play(s, 'twin_strike')
-    expect(before - s.enemies[0]!.hp).toBe((5 + 2) * 2)
+    const dmg = CARD_DEFINITIONS_MAP.twin_strike!.effects[0]!
+    expect(before - s.enemies[0]!.hp).toBe(((dmg as { amount: number }).amount + 2) * 2)
   })
 
   it('body slam deals damage equal to block', () => {
@@ -68,21 +75,21 @@ describe('combatEngine — temel', () => {
     s = play(s, 'defend')
     const hp = s.enemies[0]!.hp
     s = play(s, 'body_slam')
-    expect(hp - s.enemies[0]!.hp).toBe(6)
+    expect(hp - s.enemies[0]!.hp).toBe(amountOf('defend', 'block'))
   })
 
   it('dexterity increases block from cards', () => {
     let s = battleWith(many('defend', 10))
     s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, dexterity: 2 } } }
     s = play(s, 'defend')
-    expect(s.player.block).toBe(8)
+    expect(s.player.block).toBe(amountOf('defend', 'block') + 2)
   })
 
   it('catalyst doubles poison', () => {
     let s = battleWith([...many('envenom', 5), ...many('catalyst', 5)])
     s = play(s, 'envenom')
     s = play(s, 'catalyst')
-    expect(s.enemies[0]!.statuses.poison).toBe(8)
+    expect(s.enemies[0]!.statuses.poison).toBe(amountOf('envenom', 'applyStatus') * 2)
   })
 
   it('power cards leave combat after being played', () => {
@@ -97,7 +104,7 @@ describe('combatEngine — temel', () => {
     let s = battleWith(many('thunderclap', 10), ['louse', 'louse'])
     const hps = s.enemies.map((e) => e.hp)
     s = play(s, 'thunderclap')
-    s.enemies.forEach((e, i) => expect(e.hp).toBe(hps[i]! - 4))
+    s.enemies.forEach((e, i) => expect(e.hp).toBe(hps[i]! - amountOf('thunderclap', 'damage')))
     expect(s.enemies.every((e) => e.statuses.vulnerable === 1)).toBe(true)
   })
 
@@ -106,7 +113,7 @@ describe('combatEngine — temel', () => {
     const [a, b] = s.enemies
     s = play(s, 'strike', b!.uid)
     expect(s.enemies.find((e) => e.uid === a!.uid)!.hp).toBe(a!.hp)
-    expect(s.enemies.find((e) => e.uid === b!.uid)!.hp).toBe(b!.hp - 8)
+    expect(s.enemies.find((e) => e.uid === b!.uid)!.hp).toBe(b!.hp - amountOf('strike', 'damage'))
   })
 
   it('same enemy types get staggered intents', () => {
@@ -167,17 +174,19 @@ describe('combatEngine — tur akışı ve durumlar', () => {
 
   it('metallicize grants block before enemies act', () => {
     let s = battleWith(many('strike', 10), ['louse'])
-    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, metallicize: 6 } } }
+    const hit = s.enemies[0]!.intent.value ?? 0
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, metallicize: hit } } }
     const hp = s.player.hp
-    s = endPlayerTurn(s) // asalak 6 vurur
+    s = endPlayerTurn(s) // asalak `hit` kadar vurur
     expect(s.player.hp).toBe(hp)
   })
 
   it('incoming damage preview accounts for vulnerable', () => {
     let s = battleWith(many('strike', 10), ['jaw_worm'])
-    expect(incomingDamage(s)).toBe(11)
+    const raw = s.enemies[0]!.intent.value ?? 0
+    expect(incomingDamage(s)).toBe(raw)
     s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, vulnerable: 1 } } }
-    expect(incomingDamage(s)).toBe(16)
+    expect(incomingDamage(s)).toBe(Math.floor(raw * 1.5))
   })
 
   it('innate cards start in hand without exceeding the draw size', () => {

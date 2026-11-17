@@ -20,33 +20,33 @@ const vuln = (value: number): EnemyIntent => ({ kind: 'apply_player_vulnerable',
 // ── Sıradan ────────────────────────────────────────────────────────────────
 
 export const louse: EnemyDefinition = {
-  id: 'louse', name: 'Asalak', maxHp: 24, art: 'louse',
+  id: 'louse', name: 'Asalak', maxHp: 27, art: 'louse',
   blurb: 'Küçük ama sinsi; sürü hâlinde zayıflatır.',
-  intentScript: script([], [atk(6), weak(1), atk(4, 2), atk(7), def(6)]),
+  intentScript: script([], [atk(7), weak(1), atk(4, 2), atk(8), def(6)]),
 }
 
 export const bat: EnemyDefinition = {
-  id: 'bat', name: 'Mağara Yarasası', maxHp: 17, glyph: '🦇',
+  id: 'bat', name: 'Mağara Yarasası', maxHp: 19, glyph: '🦇',
   blurb: 'Sürüyle saldırır; tek tek kırılgan.',
-  intentScript: script([], [atk(3, 2), atk(5), vuln(1), atk(3, 2)]),
+  intentScript: script([], [atk(3, 2), atk(6), vuln(1), atk(4, 2)]),
 }
 
 export const jawWorm: EnemyDefinition = {
-  id: 'jaw_worm', name: 'Çene Kurdu', maxHp: 44, art: 'jaw-worm',
+  id: 'jaw_worm', name: 'Çene Kurdu', maxHp: 48, art: 'jaw-worm',
   blurb: 'Toprak altından gelir; ısırır, kabuğuna çekilir, büyür.',
-  intentScript: script([atk(11)], [atkDef(7, 5), buff(3), atk(11), atkDef(7, 5), atk(11)]),
+  intentScript: script([atk(12)], [atkDef(8, 6), buff(3), atk(12), atkDef(8, 6), atk(13)]),
 }
 
 export const cultist: EnemyDefinition = {
-  id: 'cultist', name: 'Tarikatçı', maxHp: 50, art: 'cultist',
+  id: 'cultist', name: 'Tarikatçı', maxHp: 56, art: 'cultist',
   blurb: 'Ayin yaptıkça güçlenir — çabuk bitir.',
-  intentScript: script([buff(3)], [atk(6), atk(6), buff(2)]),
+  intentScript: script([buff(4)], [atk(7), atk(7), buff(3)]),
 }
 
 export const skeleton: EnemyDefinition = {
-  id: 'skeleton', name: 'İskelet Muhafız', maxHp: 46, glyph: '💀',
+  id: 'skeleton', name: 'İskelet Muhafız', maxHp: 52, glyph: '💀',
   blurb: 'Kalkanıyla vurur; sabırlı ve dayanıklı.',
-  intentScript: script([], [atkDef(8, 6), atk(13), weak(2), atkDef(8, 6), def(10)]),
+  intentScript: script([], [atkDef(9, 6), atk(15), weak(2), atkDef(9, 6), def(10)]),
 }
 
 // ── Elit ───────────────────────────────────────────────────────────────────
@@ -58,19 +58,19 @@ export const fungibeast: EnemyDefinition = {
 }
 
 export const stoneGolem: EnemyDefinition = {
-  id: 'stone_golem', name: 'Taş Golem', maxHp: 118, glyph: '🗿',
+  id: 'stone_golem', name: 'Taş Golem', maxHp: 100, glyph: '🗿',
   blurb: 'Kayadan yontulmuş muhafız; her vuruşu bir çığ.',
-  intentScript: script([def(15)], [atk(22), atkDef(12, 10), buff(2), atk(7, 3), def(14)]),
+  intentScript: script([def(12)], [atk(19), atkDef(10, 10), buff(2), atk(6, 3), def(12)]),
 }
 
 // ── Boss ───────────────────────────────────────────────────────────────────
 
 export const shadowLord: EnemyDefinition = {
-  id: 'shadow_lord', name: 'Gölge Efendisi', maxHp: 230, art: 'shadow_lord',
+  id: 'shadow_lord', name: 'Gölge Efendisi', maxHp: 180, art: 'shadow_lord',
   blurb: 'Zindanın efendisi. Gölgeleri büyüdükçe darbeleri ağırlaşır.',
   intentScript: script(
     [buff(2)],
-    [atk(16), atk(8, 2), vuln(2), atkDef(18, 15), atk(6, 4), weak(2), atk(28), def(24), buff(2)],
+    [atk(16), atk(8, 2), vuln(2), atkDef(17, 12), atk(5, 4), weak(2), atk(27), def(18), buff(3)],
   ),
 }
 
