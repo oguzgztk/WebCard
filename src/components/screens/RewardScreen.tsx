@@ -6,6 +6,7 @@ import { RunHud } from '@/components/screens/RunHud'
 import { Coin } from '@/components/ui/Coin'
 import { UIButton } from '@/components/ui/UIButton'
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { POTION_MAP } from '@/data/potions'
 import type { RunState } from '@/game/runTypes'
 import { sfx } from '@/lib/audio'
 
@@ -48,6 +49,17 @@ export function RewardScreen({ run, onSelectCard }: Props) {
               <Coin className="text-[17px]" />
               <span className="font-display text-[18px] font-semibold text-[#e0b450]">+{gold}</span>
               <span className="text-[12px] text-[#7a6e57]">altın</span>
+            </motion.div>
+          )}
+          {run.pendingPotion && POTION_MAP[run.pendingPotion] && (
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 400, damping: 18 }}
+              className="ml-2 mt-3 inline-flex items-center gap-2 rounded-lg border border-[#4a3a6a]/70 bg-black/40 px-4 py-2"
+            >
+              <span className="text-[17px]">{POTION_MAP[run.pendingPotion].icon}</span>
+              <span className="text-[13px] font-semibold text-[#c8b0f0]">{POTION_MAP[run.pendingPotion].name}</span>
             </motion.div>
           )}
           <p className="mt-3 text-[13px] text-[#7a7060]">Destene eklemek için bir kart seç.</p>

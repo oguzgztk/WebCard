@@ -9,6 +9,7 @@ import { PileIndicator } from '@/components/combat/PileIndicators'
 import { PlayerPanel } from '@/components/combat/PlayerPanel'
 import { RelicBadgeRow } from '@/components/relics/RelicCard'
 import { DeckViewer } from '@/components/ui/DeckViewer'
+import { PotionBar } from '@/components/ui/PotionBar'
 import { SettingsButton } from '@/components/ui/SettingsButton'
 import { UIButton } from '@/components/ui/UIButton'
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
@@ -23,7 +24,7 @@ type Props = Readonly<{
   /** Menüye dön (koşu modunda koşu kayıtlı kalır). */
   onExit: () => void
   /** Koşu modu: galibiyette ödüle geç. */
-  onVictory?: (playerHp: number, stats: CombatStats) => void
+  onVictory?: (playerHp: number, stats: CombatStats, potionsLeft: string[]) => void
   /** Koşu modu: yenilgi. */
   onDefeat?: (stats: CombatStats) => void
 }>
@@ -38,6 +39,8 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
   const startBattle = useGameStore((s) => s.startBattle)
   const tapCard = useGameStore((s) => s.tapCard)
   const playCardAction = useGameStore((s) => s.playCardAction)
+  const tapPotion = useGameStore((s) => s.tapPotion)
+  const drinkPotionAction = useGameStore((s) => s.drinkPotionAction)
   const cancelTargetMode = useGameStore((s) => s.cancelTargetMode)
   const endTurn = useGameStore((s) => s.endTurn)
   const devKill = useGameStore((s) => s.devKillAllEnemies)
@@ -94,7 +97,8 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
       if (!Number.isNaN(n) && n >= 1) {
         if (tm) {
           const enemy = g.enemies.filter((x) => x.hp > 0)[n - 1]
-          if (enemy) playCardAction(tm.cardInstanceId, enemy.uid)
+          if (enemy && tm.cardInstanceId) playCardAction(tm.cardInstanceId, enemy.uid)
+          else if (enemy && tm.potionIndex !== undefined) drinkPotionAction(tm.potionIndex, enemy.uid)
         } else if (g.hand[n - 1]) {
           tapCard(g.hand[n - 1]!.instanceId)
         }
@@ -106,7 +110,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cancelTargetMode, playCardAction, tapCard, endTurn])
+  }, [cancelTargetMode, playCardAction, drinkPotionAction, tapCard, endTurn])
 
   // Store bu savaşı başlatana kadar çizme — önceki savaşın durumundan sahte can/blok animasyonları olmasın.
   if (activeBattle !== battle) return <div className="h-dvh bg-[#080807]" />
@@ -149,7 +153,7 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
       <OutcomeOverlay
         game={game}
         runMode={runMode}
-        onContinue={() => onVictory?.(game.player.hp, game.stats)}
+        onContinue={() => onVictory?.(game.player.hp, game.stats, game.potions)}
         onDefeat={() => onDefeat?.(game.stats)}
         onRetry={() => startBattle(battle, { fresh: true })}
         onExit={onExit}
@@ -179,8 +183,20 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
           >
             {battle.label}
           </span>
-          {battle.relicIds && battle.relicIds.length > 0 && <RelicBadgeRow relicIds={battle.relicIds} />}
+          {battle.relicIds && battle.relicIds.length > 0 && (
+            <div className="hidden sm:block">
+              <RelicBadgeRow relicIds={battle.relicIds} />
+            </div>
+          )}
         </div>
+        {runMode && (
+          <PotionBar
+            potions={game.potions}
+            onUse={tapPotion}
+            disabled={!playerTurn}
+            selectedIndex={targetMode?.potionIndex ?? null}
+          />
+        )}
         <div className="flex shrink-0 items-center gap-3">
           <div className="text-right">
             <div className="text-[9px] uppercase tracking-[0.2em] text-[#746b5f]">Tur</div>
@@ -215,7 +231,10 @@ export function CombatScreen({ battle, onExit, onVictory, onDefeat }: Props) {
                 targetable={Boolean(targetMode) && playerTurn}
                 acting={actingEnemyUid === enemy.uid}
                 hotkey={idx >= 0 ? idx + 1 : undefined}
-                onSelect={() => targetMode && playCardAction(targetMode.cardInstanceId, enemy.uid)}
+                onSelect={() => {
+                  if (targetMode?.cardInstanceId) playCardAction(targetMode.cardInstanceId, enemy.uid)
+                  else if (targetMode?.potionIndex !== undefined) drinkPotionAction(targetMode.potionIndex, enemy.uid)
+                }}
               />
             )
           })}

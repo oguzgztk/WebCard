@@ -4,12 +4,14 @@ export type BattleChoice = Readonly<{
   enemyDefIds: ReadonlyArray<string>
   /** Düşman can çarpanı (kat/zorluk). */
   enemyHpScale?: number
+  enemyStrength?: number
   label: string
   deckDefinitionIds: ReadonlyArray<string>
   /** Koşu modunda: run'dan taşınan mevcut can. Belirtilmezse tam can başlar. */
   playerCurrentHp?: number
   playerMaxHp?: number
   relicIds?: ReadonlyArray<string>
+  potions?: ReadonlyArray<string>
   /** Koşu modunda: savaş ara kaydı anahtarı (düğüm ID'si). Yoksa savaş kaydedilmez. */
   persistKey?: string
   /** Oyuncu paneli için karakter. */

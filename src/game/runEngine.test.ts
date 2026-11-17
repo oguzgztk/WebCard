@@ -13,6 +13,7 @@ import {
   applyRewardCard,
   availableNodeIds,
   buyShopCard,
+  buyShopPotion,
   eventOutcomeGoldCost,
   generateRun,
   getCardShopPrice,
@@ -170,6 +171,24 @@ describe('mağaza ve mola', () => {
     expect(once.deckDefIds).toHaveLength(run.deckDefIds.length - 1)
     expect(once.shopRemovalPrice).toBe(run.shopRemovalPrice + 25)
     expect(removeShopCard(once, 'strike')).toBe(once)
+  })
+
+  it('sells potions only while the bag has room', () => {
+    const run = shopRun()
+    expect(run.shopPotions.length).toBeGreaterThan(0)
+    const offer = run.shopPotions[0]!
+    const bought = buyShopPotion(run, offer.defId)
+    expect(bought.potions).toContain(offer.defId)
+    const full = { ...run, potions: ['heal_potion', 'heal_potion', 'heal_potion'] }
+    expect(buyShopPotion(full, offer.defId)).toBe(full)
+  })
+
+  it('combat victory writes back remaining potions', () => {
+    let r = generateRun(9, 'demirci')
+    r = selectNode({ ...r, potions: ['heal_potion', 'fire_potion'] }, availableNodeIds(r)[0]!)
+    const next = resolveCombatVictory(r, 50, undefined, ['fire_potion'])
+    expect(next.potions[0]).toBe('fire_potion')
+    expect(next.potions.length).toBeLessThanOrEqual(3)
   })
 
   it('rest upgrade replaces the card with its + version', () => {

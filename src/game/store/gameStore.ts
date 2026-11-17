@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
 import { QUICK_BATTLE_DECK } from '@/data/characters'
+import { potionNeedsTarget } from '@/data/potions'
 import type { BattleChoice } from '@/game/battleChoice'
 import {
   beginEnemyTurn,
@@ -10,15 +11,15 @@ import {
   playCard,
   resolveEnemyAction,
   startCombat,
+  drinkPotion,
 } from '@/game/engine/combatEngine'
 import { loadCombat, saveCombat } from '@/game/store/persistence'
 import { getSettings } from '@/game/store/settingsStore'
 import type { GameState } from '@/game/types'
 import { haptic, sfx } from '@/lib/audio'
 
-export interface TargetModeState {
-  cardInstanceId: string
-}
+/** Hedef seçimi bekleyen kart ya da iksir. */
+export type TargetModeState = { cardInstanceId: string; potionIndex?: undefined } | { potionIndex: number; cardInstanceId?: undefined }
 
 type CombatStore = {
   game: GameState
@@ -36,6 +37,9 @@ type CombatStore = {
   playCardAction: (instanceId: string, enemyUid?: string | null) => void
   /** Kartı oyna; birden çok düşman ve tek hedefli kartsa hedef seçimine gir. */
   tapCard: (instanceId: string) => void
+  /** İksire dokun: gerekirse hedef seçimine gir, değilse hemen kullan. */
+  tapPotion: (index: number) => void
+  drinkPotionAction: (index: number, enemyUid?: string | null) => void
   endTurn: () => void
   enterTargetMode: (instanceId: string) => void
   cancelTargetMode: () => void
@@ -75,10 +79,12 @@ export const useGameStore = create<CombatStore>((set, get) => ({
           seed: battle.seed,
           enemyDefIds: battle.enemyDefIds,
           enemyHpScale: battle.enemyHpScale,
+          enemyStrength: battle.enemyStrength,
           deckDefinitionIds: battle.deckDefinitionIds,
           playerCurrentHp: battle.playerCurrentHp,
           playerMaxHp: battle.playerMaxHp,
           relicIds: battle.relicIds,
+          potions: battle.potions,
         }),
       targetMode: null,
       persistKey: key,
@@ -101,7 +107,7 @@ export const useGameStore = create<CombatStore>((set, get) => ({
   tapCard(instanceId) {
     const { game, busy, targetMode } = get()
     if (busy || game.phase !== 'playerTurn') return
-    if (targetMode?.cardInstanceId === instanceId) {
+    if (targetMode && targetMode.cardInstanceId === instanceId) {
       set({ targetMode: null })
       return
     }
@@ -118,6 +124,29 @@ export const useGameStore = create<CombatStore>((set, get) => ({
       return
     }
     get().playCardAction(instanceId, alive[0]?.uid ?? null)
+  },
+
+  tapPotion(index) {
+    const { game, busy, targetMode } = get()
+    if (busy || game.phase !== 'playerTurn' || !game.potions[index]) return
+    if (targetMode?.potionIndex === index) {
+      set({ targetMode: null })
+      return
+    }
+    const alive = game.enemies.filter((e) => e.hp > 0)
+    if (alive.length > 1 && potionNeedsTarget(game.potions[index]!)) {
+      sfx.click()
+      set({ targetMode: { potionIndex: index } })
+      return
+    }
+    get().drinkPotionAction(index, alive[0]?.uid ?? null)
+  },
+
+  drinkPotionAction(index, enemyUid = null) {
+    const { game, busy } = get()
+    if (busy) return
+    sfx.relic()
+    set({ game: drinkPotion(game, index, enemyUid), targetMode: null })
   },
 
   endTurn() {

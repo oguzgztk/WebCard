@@ -30,7 +30,8 @@ async function at(name, patch, after) {
   await page.evaluate((p) => {
     const s = window.__RUN_STORE__
     const run = s.getState().run
-    s.setState({ run: { ...run, ...p, gold: 300, relics: [...run.relics, 'anchor', 'vajra', 'lantern'] } })
+    const relics = [...new Set([...run.relics, 'anchor', 'vajra', 'lantern'])]
+    s.setState({ run: { ...run, potions: ['heal_potion', 'fire_potion'], ...p, gold: 300, relics } })
   }, patch)
   await page.waitForTimeout(700)
   if (after) await after()
@@ -72,6 +73,14 @@ await at('settings', { phase: 'map' }, async () => {
   await page.waitForTimeout(500)
 })
 await page.keyboard.press('Escape')
+await at('combat-potions', { phase: 'map', currentNodeId: null }, async () => {
+  await page.evaluate(() => {
+    const s = window.__RUN_STORE__
+    const run = s.getState().run
+    s.getState().selectNode(run.nodes.find((n) => n.floor === 0 && n.kind === 'combat').id)
+  })
+  await page.waitForTimeout(1200)
+})
 await at('victory', { phase: 'run_victory', stats: { floorsCleared: 13, enemiesKilled: 21, elitesKilled: 2, damageDealt: 1234, damageTaken: 310, cardsPlayed: 260, goldEarned: 420 } })
 
 console.log(errors.length ? errors.join('\n') : 'Hata yok')

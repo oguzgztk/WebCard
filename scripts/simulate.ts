@@ -6,7 +6,7 @@
  */
 
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
-import { endPlayerTurn, incomingDamage, playCard, startCombat } from '@/game/engine/combatEngine'
+import { drinkPotion, endPlayerTurn, incomingDamage, playCard, startCombat } from '@/game/engine/combatEngine'
 import { calcDamage } from '@/game/engine/effectResolver'
 import {
   applyRelicReward,
@@ -15,6 +15,7 @@ import {
   applyRewardCard,
   availableNodeIds,
   buyShopCard,
+  buyShopPotion,
   buyShopRelic,
   currentNode,
   generateRun,
@@ -82,12 +83,22 @@ function botCombat(run: RunState, seed: number) {
     seed,
     enemyDefIds: node.enemyDefIds,
     enemyHpScale: node.enemyHpScale,
+    enemyStrength: node.enemyStrength,
     deckDefinitionIds: run.deckDefIds,
     playerCurrentHp: run.playerHp,
     playerMaxHp: run.playerMaxHp,
     relicIds: run.relics,
+    potions: run.potions,
   })
+  const bigFight = node.kind !== 'combat'
   for (let turn = 0; turn < 60 && g.phase === 'playerTurn'; turn++) {
+    // İksirler: zor savaşta ilk tur, ya da can %35'in altına inince
+    if ((bigFight && turn === 0) || g.player.hp < g.player.maxHp * 0.35) {
+      while (g.potions.length && g.phase === 'playerTurn') {
+        const target = [...g.enemies].filter((e) => e.hp > 0).sort((a, b) => a.hp - b.hp)[0]
+        g = drinkPotion(g, 0, target?.uid)
+      }
+    }
     for (let safety = 0; safety < 20 && g.phase === 'playerTurn'; safety++) {
       const playable = g.hand
         .map((c) => ({ c, def: CARD_DEFINITIONS_MAP[c.defId]! }))
@@ -137,7 +148,7 @@ function simulateRun(seed: number, character: string, difficulty: Difficulty) {
         st.hpLost += before - Math.max(0, g.player.hp)
         if (g.phase !== 'victory') st.deaths++
         encounters.set(key, st)
-        run = g.phase === 'victory' ? resolveCombatVictory(run, g.player.hp, g.stats) : resolveCombatDefeat(run, g.stats)
+        run = g.phase === 'victory' ? resolveCombatVictory(run, g.player.hp, g.stats, g.potions) : resolveCombatDefeat(run, g.stats)
         break
       }
       case 'reward': {
@@ -162,6 +173,7 @@ function simulateRun(seed: number, character: string, difficulty: Difficulty) {
         const basic = run.deckDefIds.find((id) => ['strike', 'defend', 'dagger', 'deflect'].includes(id))
         if (basic) run = removeShopCard(run, basic)
         run = buyShopRelic(run)
+        for (const o of [...run.shopPotions]) run = buyShopPotion(run, o.defId)
         for (const o of [...run.shopCards]) run = buyShopCard(run, o.defId)
         run = leaveShop(run)
         break

@@ -3,6 +3,7 @@
  * Tüm erişimler try/catch içinde: gizli sekme / dolu depolama oyunu bozmaz.
  */
 
+import { normalizeRun } from '@/game/runEngine'
 import type { RunState } from '@/game/runTypes'
 import type { GameState } from '@/game/types'
 
@@ -37,7 +38,7 @@ export function saveRun(run: RunState | null) {
 
 export function loadRun(): RunState | null {
   const run = read<RunState>(RUN_KEY)
-  return run && run.version === 2 && Array.isArray(run.nodes) ? run : null
+  return run && run.version === 2 && Array.isArray(run.nodes) ? normalizeRun(run) : null
 }
 
 export function hasSavedRun() {
@@ -59,7 +60,8 @@ export function saveCombat(key: string, game: GameState) {
 
 export function loadCombat(key: string): GameState | null {
   const save = read<CombatSave>(COMBAT_KEY)
-  return save && save.key === key && save.game?.turnCounters ? save.game : null
+  if (!save || save.key !== key || !save.game?.turnCounters) return null
+  return { ...save.game, potions: save.game.potions ?? [] }
 }
 
 export function clearCombatSave() {

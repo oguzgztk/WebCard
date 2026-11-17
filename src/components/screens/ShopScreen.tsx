@@ -8,6 +8,8 @@ import { DeckViewer } from '@/components/ui/DeckViewer'
 import { Coin } from '@/components/ui/Coin'
 import { UIButton } from '@/components/ui/UIButton'
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { POTION_MAP, POTION_SLOTS } from '@/data/potions'
+import { potionTooltip } from '@/game/potionText'
 import { RELIC_MAP } from '@/game/relics'
 import type { RunState } from '@/game/runTypes'
 import { sfx } from '@/lib/audio'
@@ -17,6 +19,7 @@ type Props = Readonly<{
   run: RunState
   onBuyCard: (defId: string) => void
   onBuyRelic: () => void
+  onBuyPotion: (potionId: string) => void
   onRemoveCard: (defId: string) => void
   onLeave: () => void
 }>
@@ -35,7 +38,8 @@ function Price({ price, affordable, onSale }: { price: number; affordable: boole
   )
 }
 
-export function ShopScreen({ run, onBuyCard, onBuyRelic, onRemoveCard, onLeave }: Props) {
+export function ShopScreen({ run, onBuyCard, onBuyRelic, onBuyPotion, onRemoveCard, onLeave }: Props) {
+  const bagFull = run.potions.length >= POTION_SLOTS
   const [removing, setRemoving] = useState(false)
   const relic = run.shopRelic ? RELIC_MAP[run.shopRelic.defId] : null
   const canRemove = !run.shopRemovalUsed && run.gold >= run.shopRemovalPrice
@@ -115,6 +119,38 @@ export function ShopScreen({ run, onBuyCard, onBuyRelic, onRemoveCard, onLeave }
             ) : (
               <p className="text-[13px] text-[#4a4438]">Satıldı.</p>
             )}
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7a7060]">
+              İksirler {bagFull && <span className="normal-case tracking-normal text-[#a07060]">(çanta dolu)</span>}
+            </h2>
+            <div className="flex gap-3">
+              {run.shopPotions.length === 0 && <p className="text-[13px] text-[#4a4438]">Satıldı.</p>}
+              {run.shopPotions.map((offer) => {
+                const p = POTION_MAP[offer.defId]
+                if (!p) return null
+                const ok = run.gold >= offer.price && !bagFull
+                return (
+                  <motion.button
+                    key={offer.defId}
+                    type="button"
+                    whileHover={ok ? { y: -3 } : undefined}
+                    onClick={() => buy(ok, () => onBuyPotion(offer.defId))}
+                    title={potionTooltip(offer.defId)}
+                    className={cn(
+                      'flex w-28 flex-col items-center gap-1.5 rounded-xl border border-[#4a3a6a]/70 bg-gradient-to-b from-[#1a1428] to-black/90 p-3 text-center transition',
+                      !ok && 'opacity-50',
+                    )}
+                  >
+                    <span className="text-3xl">{p.icon}</span>
+                    <span className="text-[12px] font-semibold leading-tight text-[#ede6d8]">{p.name}</span>
+                    <span className="text-[10px] leading-snug text-[#8a8070]">{potionTooltip(offer.defId).split(': ')[1]}</span>
+                    <Price price={offer.price} affordable={run.gold >= offer.price} />
+                  </motion.button>
+                )
+              })}
+            </div>
           </div>
 
           <div>

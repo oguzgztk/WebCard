@@ -25,11 +25,13 @@ function runBattle(run: RunState): BattleChoice | null {
     seed: node.seed,
     enemyDefIds: node.enemyDefIds,
     enemyHpScale: node.enemyHpScale,
+    enemyStrength: node.enemyStrength,
     label: `${prefix} — ${nodeTitle(node)}`,
     deckDefinitionIds: run.deckDefIds,
     playerCurrentHp: run.playerHp,
     playerMaxHp: run.playerMaxHp,
     relicIds: run.relics,
+    potions: run.potions,
     persistKey: node.id,
     characterId: run.characterId,
     tier: node.kind === 'boss' ? 'boss' : node.kind === 'elite' ? 'elite' : 'normal',
@@ -68,6 +70,7 @@ export default function App() {
                 run={run}
                 onBuyCard={store.buyCard}
                 onBuyRelic={store.buyRelic}
+                onBuyPotion={store.buyPotion}
                 onRemoveCard={store.removeCard}
                 onLeave={store.leaveShop}
               />

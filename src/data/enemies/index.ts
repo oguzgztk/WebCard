@@ -66,7 +66,7 @@ export const stoneGolem: EnemyDefinition = {
 // ── Boss ───────────────────────────────────────────────────────────────────
 
 export const shadowLord: EnemyDefinition = {
-  id: 'shadow_lord', name: 'Gölge Efendisi', maxHp: 180, art: 'shadow_lord',
+  id: 'shadow_lord', name: 'Gölge Efendisi', maxHp: 190, art: 'shadow_lord',
   blurb: 'Zindanın efendisi. Gölgeleri büyüdükçe darbeleri ağırlaşır.',
   intentScript: script(
     [buff(2)],

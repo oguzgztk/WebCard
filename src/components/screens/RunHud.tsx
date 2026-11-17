@@ -3,11 +3,17 @@ import { useState } from 'react'
 
 import { RelicBadgeRow } from '@/components/relics/RelicCard'
 import { DeckViewer } from '@/components/ui/DeckViewer'
+import { Modal } from '@/components/ui/Modal'
+import { PotionBar } from '@/components/ui/PotionBar'
+import { potionTooltip } from '@/game/potionText'
+import { UIButton } from '@/components/ui/UIButton'
+import { POTION_MAP } from '@/data/potions'
 import { SettingsButton } from '@/components/ui/SettingsButton'
 import { CHARACTER_MAP } from '@/data/characters'
 import { MAP_FLOORS } from '@/game/mapGen'
 import { currentNode } from '@/game/runEngine'
 import type { RunState } from '@/game/runTypes'
+import { useRunStore } from '@/game/store/runStore'
 import { cn } from '@/lib/cn'
 
 type Props = Readonly<{
@@ -19,6 +25,9 @@ type Props = Readonly<{
 /** Koşu üst çubuğu — can, altın, deste, kat, yadigârlar. Harita ve düğüm ekranlarında ortak. */
 export function RunHud({ run, onExit, className }: Props) {
   const [deckOpen, setDeckOpen] = useState(false)
+  const [potionIdx, setPotionIdx] = useState<number | null>(null)
+  const discardPotion = useRunStore((st) => st.discardPotion)
+  const potionId = potionIdx !== null ? run.potions[potionIdx] : undefined
   const character = CHARACTER_MAP[run.characterId]
   const floor = (currentNode(run)?.floor ?? -1) + 1
   const hpRatio = run.playerHp / Math.max(1, run.playerMaxHp)
@@ -76,13 +85,32 @@ export function RunHud({ run, onExit, className }: Props) {
             </span>
           )}
         </div>
+        <PotionBar potions={run.potions} onUse={setPotionIdx} className="hidden sm:flex" />
         <SettingsButton />
       </div>
-      {run.relics.length > 0 && (
-        <div className="mx-auto w-full max-w-4xl">
-          <RelicBadgeRow relicIds={run.relics} />
-        </div>
-      )}
+      <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3">
+        <RelicBadgeRow relicIds={run.relics} />
+        <PotionBar potions={run.potions} onUse={setPotionIdx} className="sm:hidden" />
+      </div>
+      <Modal open={Boolean(potionId)} onClose={() => setPotionIdx(null)} title={potionId ? POTION_MAP[potionId]?.name : ''} className="max-w-sm">
+        {potionId && (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <span className="text-5xl">{POTION_MAP[potionId]?.icon}</span>
+            <p className="text-[14px] text-[#c4beb4]">{potionTooltip(potionId).split(': ').slice(1).join(': ')}</p>
+            <p className="text-[12px] text-[#7a7060]">İksirler savaş sırasında, enerji harcamadan kullanılır.</p>
+            <UIButton
+              tone="danger"
+              size="compact"
+              onClick={() => {
+                discardPotion(potionIdx!)
+                setPotionIdx(null)
+              }}
+            >
+              İksiri at
+            </UIButton>
+          </div>
+        )}
+      </Modal>
       <DeckViewer open={deckOpen} onClose={() => setDeckOpen(false)} title="Destem" defIds={run.deckDefIds} />
     </header>
   )

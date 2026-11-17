@@ -86,12 +86,13 @@ function encounterFor(rng: Rng, tier: EncounterTier): string[] {
 
 /** Kat ve zorluğa göre düşman can çarpanı. */
 export function enemyHpScaleFor(floor: number, kind: MapNodeKind, difficulty: Difficulty) {
-  const base = kind === 'boss' ? 1 : 1 + floor * 0.035
-  return Math.round(base * (difficulty === 'hard' ? 1.2 : 1) * 100) / 100
+  const base = kind === 'boss' ? 1 : 1 + floor * 0.05
+  return Math.round(base * (difficulty === 'hard' ? 1.12 : 1) * 100) / 100
 }
 
 export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { nodes: MapNode[]; nextSeed: number } {
   const rng = new Rng(seed)
+  const enemyStrength = difficulty === 'hard' ? 1 : 0
 
   // 1) Yolları yürü → (kat, sütun) düğümleri ve bağlantılar
   const occupied: Array<Set<number>> = Array.from({ length: REST_FLOOR + 1 }, () => new Set())
@@ -140,6 +141,7 @@ export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { 
     kind: 'boss',
     enemyDefIds: encounterFor(rng, 'boss'),
     enemyHpScale: enemyHpScaleFor(BOSS_FLOOR, 'boss', difficulty),
+    enemyStrength,
     next: [],
     seed: rng.raw(),
     visited: false,
@@ -169,6 +171,7 @@ export function generateMap(seed: number, difficulty: Difficulty = 'normal'): { 
       const tier: EncounterTier = n.kind === 'elite' ? 'elite' : n.floor < 3 ? 'easy' : 'normal'
       n.enemyDefIds = encounterFor(rng, tier)
       n.enemyHpScale = enemyHpScaleFor(n.floor, n.kind, difficulty)
+      n.enemyStrength = enemyStrength
     }
     if (n.kind === 'event') n.eventId = ALL_EVENTS[rng.int(ALL_EVENTS.length)]!.id
   }

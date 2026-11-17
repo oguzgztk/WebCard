@@ -56,6 +56,8 @@ function describeEffect(effect: Effect, ctx?: CardTextContext): TextPart[] {
       const actual = ctx ? Math.max(0, effect.amount + (ctx.player.dexterity ?? 0)) : effect.amount
       return [num(effect.amount, actual), { text: ' Blok kazan.' }]
     }
+    case 'heal':
+      return [{ text: `${effect.amount} can kazan.` }]
     case 'draw':
       return [{ text: `${effect.amount} kart çek.` }]
     case 'gainEnergy':
@@ -91,6 +93,11 @@ export function describeCard(def: CardDefinition, ctx?: CardTextContext): TextPa
   if (def.ethereal) push([{ text: 'Geçici.', keyword: true }])
   if (def.exhaust) push([{ text: 'Tüket.', keyword: true }])
   return parts
+}
+
+/** Kart dışı etki listeleri (iksirler) için açıklama. */
+export function describeEffects(effects: ReadonlyArray<Effect>, ctx?: CardTextContext): string {
+  return effects.map((e) => describeEffect(e, ctx).map((p) => p.text).join('')).join(' ')
 }
 
 export function describeCardPlain(def: CardDefinition): string {

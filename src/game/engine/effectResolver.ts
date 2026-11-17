@@ -200,6 +200,9 @@ export function resolveCardEffectsSequential(
       case 'block':
         acc = gainPlayerBlock(acc, effect.amount)
         break
+      case 'heal':
+        acc = { ...acc, player: { ...acc.player, hp: Math.min(acc.player.maxHp, acc.player.hp + effect.amount) } }
+        break
       case 'draw':
         acc = drawCards(acc, effect.amount)
         break

@@ -7,7 +7,9 @@ import {
   applyRestUpgrade,
   applyRewardCard,
   buyShopCard,
+  buyShopPotion,
   buyShopRelic,
+  discardPotion,
   generateRun,
   leaveShop,
   removeShopCard,
@@ -34,7 +36,7 @@ type RunStore = {
   loadRun: () => void
   startRun: (masterSeed: number, characterId: string, difficulty?: Difficulty) => void
   selectNode: (nodeId: string) => void
-  completeCombat: (playerHp: number, stats?: Partial<CombatStats>) => void
+  completeCombat: (playerHp: number, stats?: Partial<CombatStats>, potionsLeft?: ReadonlyArray<string>) => void
   defeatRun: (stats?: Partial<CombatStats>) => void
   chooseHeal: () => void
   chooseSkipRest: () => void
@@ -44,6 +46,8 @@ type RunStore = {
   selectRelicReward: (relicId: string | null) => void
   buyCard: (defId: string) => void
   buyRelic: () => void
+  buyPotion: (potionId: string) => void
+  discardPotion: (index: number) => void
   removeCard: (defId: string) => void
   leaveShop: () => void
   resolveEvent: (outcome: EventOutcome) => void
@@ -76,7 +80,7 @@ export const useRunStore = create<RunStore>((set) => ({
   },
 
   selectNode: (nodeId) => apply(set, (r) => selectNode(r, nodeId)),
-  completeCombat: (hp, stats) => apply(set, (r) => resolveCombatVictory(r, hp, stats)),
+  completeCombat: (hp, stats, potions) => apply(set, (r) => resolveCombatVictory(r, hp, stats, potions)),
   defeatRun: (stats) => apply(set, (r) => resolveCombatDefeat(r, stats)),
   chooseHeal: () => apply(set, applyRestHeal),
   chooseSkipRest: () => apply(set, skipRest),
@@ -85,6 +89,8 @@ export const useRunStore = create<RunStore>((set) => ({
   selectRelicReward: (relicId) => apply(set, (r) => applyRelicReward(r, relicId)),
   buyCard: (defId) => apply(set, (r) => buyShopCard(r, defId)),
   buyRelic: () => apply(set, buyShopRelic),
+  buyPotion: (id) => apply(set, (r) => buyShopPotion(r, id)),
+  discardPotion: (i) => apply(set, (r) => discardPotion(r, i)),
   removeCard: (defId) => apply(set, (r) => removeShopCard(r, defId)),
   leaveShop: () => apply(set, leaveShop),
   resolveEvent: (outcome) => apply(set, (r) => resolveEventChoice(r, outcome)),

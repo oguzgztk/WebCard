@@ -5,6 +5,7 @@ import { describeCardPlain } from '@/game/cardText'
 import { HAND_DRAW_SIZE } from '@/game/constants'
 import {
   beginEnemyTurn,
+  drinkPotion,
   endPlayerTurn,
   finishEnemyTurn,
   incomingDamage,
@@ -223,5 +224,29 @@ describe('cardText', () => {
     const atk = { ...emptyStatuses(), strength: 2, weak: 1 }
     const def = { ...emptyStatuses(), vulnerable: 1 }
     expect(calcDamage(10, atk, def)).toBe(Math.floor(Math.floor(12 * 0.75) * 1.5))
+  })
+})
+
+describe('iksirler', () => {
+  it('heal potion restores hp without exceeding max and is consumed', () => {
+    let s = startCombat({ seed: 1, enemyDefIds: ['louse'], deckDefinitionIds: many('strike', 10), playerMaxHp: 50, playerCurrentHp: 40, potions: ['heal_potion', 'block_potion'] })
+    s = drinkPotion(s, 0)
+    expect(s.player.hp).toBe(50)
+    expect(s.potions).toEqual(['block_potion'])
+    expect(s.player.energy).toBe(3)
+  })
+
+  it('fire potion hits the chosen enemy', () => {
+    let s = startCombat({ seed: 1, enemyDefIds: ['louse', 'louse'], deckDefinitionIds: many('strike', 10), potions: ['fire_potion'] })
+    const b = s.enemies[1]!
+    s = drinkPotion(s, 0, b.uid)
+    expect(s.enemies.find((e) => e.uid === b.uid)?.hp ?? 0).toBeLessThan(b.hp)
+    expect(s.enemies[0]!.hp).toBe(s.enemies[0]!.maxHp)
+  })
+
+  it('cannot drink during the enemy turn', () => {
+    const s = startCombat({ seed: 1, enemyDefIds: ['louse'], deckDefinitionIds: many('strike', 10), potions: ['heal_potion'] })
+    const enemyTurn = { ...s, phase: 'enemyTurn' as const }
+    expect(drinkPotion(enemyTurn, 0)).toBe(enemyTurn)
   })
 })

@@ -13,6 +13,8 @@ export interface MapNode {
   enemyDefIds: string[]
   /** Düşman can çarpanı (kat ilerledikçe artar). */
   enemyHpScale: number
+  /** Düşmanların savaş başı Güç bonusu (zor mod). */
+  enemyStrength?: number
   /** Olay düğümü için olay tanım ID'si. */
   eventId?: string
   /** Bir üst kattaki bağlı düğümler. */
@@ -75,6 +77,10 @@ export interface RunState {
   gold: number
   /** Sahip olunan relic ID listesi — tüm run boyunca taşınır. */
   relics: string[]
+  /** İksir çantası (en fazla POTION_SLOTS). */
+  potions: string[]
+  /** Son savaştan düşen iksir (ödül ekranında gösterilir). */
+  pendingPotion: string | null
 
   nodes: MapNode[]
   /** Şu an bulunulan düğüm; `null` = haritanın başı (ilk kat seçilecek). */
@@ -91,6 +97,8 @@ export interface RunState {
   shopCards: ShopOffer[]
   /** Mağaza: satılık relic (yoksa `null`). */
   shopRelic: ShopOffer | null
+  /** Mağaza: satılık iksirler. */
+  shopPotions: ShopOffer[]
   /** Kart çıkarma fiyatı — her kullanımda artar. */
   shopRemovalPrice: number
   /** Bu mağaza ziyaretinde kart çıkarıldı mı (ziyaret başına bir). */

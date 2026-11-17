@@ -6,6 +6,7 @@
 import { allCardsList, CARD_DEFINITIONS_MAP, getCardRarity, getUpgradedDefinition } from '@/data/cards'
 import { CHARACTER_MAP, DEMIRCI } from '@/data/characters'
 import type { EventOutcome } from '@/data/events'
+import { ALL_POTIONS, POTION_MAP, POTION_SLOTS } from '@/data/potions'
 import { generateMap } from '@/game/mapGen'
 import { applyRelicOnPickup, applyRelicsOnCombatEnd, pickRelicReward, RELIC_MAP, type RelicTier } from '@/game/relics'
 import type { Difficulty, MapNode, MapNodeKind, RunState, RunStats, ShopOffer } from '@/game/runTypes'
@@ -34,6 +35,9 @@ const SHOP_CARD_COUNT = 5
 const SHOP_PRICE_BY_RARITY: Record<CardRarity, number> = { starter: 50, common: 50, uncommon: 80, rare: 140 }
 const RELIC_PRICE_BY_TIER: Record<RelicTier, number> = { common: 140, uncommon: 190, rare: 250, boss: 300 }
 const UPGRADED_PRICE_BONUS = 25
+const POTION_PRICE: Record<'common' | 'uncommon' | 'rare', number> = { common: 55, uncommon: 75, rare: 100 }
+/** Savaş sonrası iksir düşme şansı. */
+const POTION_DROP: Partial<Record<MapNodeKind, number>> = { combat: 0.25, elite: 0.5 }
 
 /** Kart ödülünde nadirlik ağırlıkları — düğüm türüne göre. */
 const REWARD_WEIGHTS: Record<'normal' | 'elite' | 'boss', Record<CardRarity, number>> = {
@@ -49,6 +53,19 @@ const REWARD_WEIGHTS: Record<'normal' | 'elite' | 'boss', Record<CardRarity, num
 function rngRange(seed: number, min: number, max: number) {
   const { float, nextSeed } = rngFloat01(seed)
   return { value: Math.floor(float * (max - min + 1)) + min, nextSeed }
+}
+
+/** Ağırlıklı rastgele iksir (yaygın daha sık). */
+export function pickPotion(seed: number): { id: string; nextSeed: number } {
+  const weight = { common: 6, uncommon: 3, rare: 1 } as const
+  const pool = ALL_POTIONS.flatMap((p) => Array<string>(weight[p.rarity]).fill(p.id))
+  const { float, nextSeed } = rngFloat01(seed)
+  return { id: pool[Math.floor(float * pool.length)]!, nextSeed }
+}
+
+/** Eski kayıtları güncel şemaya tamamlar. */
+export function normalizeRun(run: RunState): RunState {
+  return { ...run, potions: run.potions ?? [], pendingPotion: run.pendingPotion ?? null, shopPotions: run.shopPotions ?? [] }
 }
 
 function emptyStats(): RunStats {
@@ -117,6 +134,8 @@ export function generateRun(masterSeed: number, characterId = 'demirci', difficu
     deckDefIds: [...character.starterDeckIds],
     gold: 99,
     relics: [character.starterRelicId],
+    potions: [],
+    pendingPotion: null,
     nodes,
     currentNodeId: null,
     pendingRewardCards: [],
@@ -124,6 +143,7 @@ export function generateRun(masterSeed: number, characterId = 'demirci', difficu
     pendingRelicReward: [],
     shopCards: [],
     shopRelic: null,
+    shopPotions: [],
     shopRemovalPrice: SHOP_REMOVAL_BASE_PRICE,
     shopRemovalUsed: false,
     activeEventId: undefined,
@@ -216,6 +236,8 @@ export function resolveCombatVictory(
   run: RunState,
   playerHpAfterCombat: number,
   combat?: Partial<CombatStats>,
+  /** Savaştan sonra kalan iksirler (verilmezse koşudakiler korunur). */
+  potionsLeft?: ReadonlyArray<string>,
 ): RunState {
   const node = currentNode(run)
   if (!node || run.phase !== 'combat') return run
@@ -233,6 +255,21 @@ export function resolveCombatVictory(
     seed = nextSeed
   }
 
+  // İksir düşmesi (çanta doluysa düşmez)
+  const potions = [...(potionsLeft ?? run.potions)]
+  let pendingPotion: string | null = null
+  const dropChance = POTION_DROP[node.kind] ?? 0
+  if (dropChance > 0 && potions.length < POTION_SLOTS) {
+    const { float, nextSeed } = rngFloat01(seed)
+    seed = nextSeed
+    if (float < dropChance) {
+      const pick = pickPotion(seed)
+      seed = pick.nextSeed
+      pendingPotion = pick.id
+      potions.push(pick.id)
+    }
+  }
+
   const healed = applyRelicsOnCombatEnd({ ...run, playerHp: Math.max(1, playerHpAfterCombat) }, run.relics)
 
   return {
@@ -242,6 +279,8 @@ export function resolveCombatVictory(
     pendingRewardCards: cards,
     pendingRewardGold: goldGained,
     pendingRelicReward,
+    potions,
+    pendingPotion,
     stats: {
       ...run.stats,
       goldEarned: run.stats.goldEarned + goldGained,
@@ -276,6 +315,7 @@ export function applyRewardCard(run: RunState, defId: string | null): RunState {
     deckDefIds: defId ? [...run.deckDefIds, defId] : run.deckDefIds,
     pendingRewardCards: [],
     pendingRewardGold: 0,
+    pendingPotion: null,
   }
   return next.pendingRelicReward.length > 0 ? { ...next, phase: 'relic_reward' } : returnToMap(next)
 }
@@ -331,7 +371,15 @@ export function applyRestUpgrade(run: RunState, defId: string): RunState {
 export function enterShop(run: RunState): RunState {
   const { cards, nextSeed } = pickRewardCards(run.rngSeed, SHOP_CARD_COUNT, characterPool(run))
   const { value: saleIdx, nextSeed: s2 } = rngRange(nextSeed, 0, Math.max(0, cards.length - 1))
-  const { relics, nextSeed: s3 } = pickRelicReward(s2, run.relics, 1)
+  const { relics, nextSeed: s3a } = pickRelicReward(s2, run.relics, 1)
+  const p1 = pickPotion(s3a)
+  let p2 = pickPotion(p1.nextSeed)
+  if (p2.id === p1.id) p2 = pickPotion(p2.nextSeed)
+  const s3 = p2.nextSeed
+  const shopPotions: ShopOffer[] = [...new Set([p1.id, p2.id])].map((id) => ({
+    defId: id,
+    price: POTION_PRICE[POTION_MAP[id]!.rarity],
+  }))
 
   const shopCards: ShopOffer[] = cards.map((defId, i) => {
     const price = getCardShopPrice(defId)
@@ -342,7 +390,7 @@ export function enterShop(run: RunState): RunState {
     ? { defId: relicId, price: RELIC_PRICE_BY_TIER[RELIC_MAP[relicId]!.tier] }
     : null
 
-  return { ...run, phase: 'shop', rngSeed: s3, shopCards, shopRelic, shopRemovalUsed: false }
+  return { ...run, phase: 'shop', rngSeed: s3, shopCards, shopRelic, shopPotions, shopRemovalUsed: false }
 }
 
 export function buyShopCard(run: RunState, defId: string): RunState {
@@ -364,6 +412,24 @@ export function buyShopRelic(run: RunState): RunState {
   return applyRelicOnPickup(next, offer.defId)
 }
 
+export function buyShopPotion(run: RunState, potionId: string): RunState {
+  if (run.phase !== 'shop' || run.potions.length >= POTION_SLOTS) return run
+  const offer = run.shopPotions.find((o) => o.defId === potionId)
+  if (!offer || run.gold < offer.price) return run
+  return {
+    ...run,
+    gold: run.gold - offer.price,
+    potions: [...run.potions, potionId],
+    shopPotions: run.shopPotions.filter((o) => o !== offer),
+  }
+}
+
+/** İksiri at (çantada yer açmak için). */
+export function discardPotion(run: RunState, index: number): RunState {
+  if (index < 0 || index >= run.potions.length) return run
+  return { ...run, potions: run.potions.filter((_, i) => i !== index) }
+}
+
 /** Desteden bir kart çıkar (ücretli, ziyaret başına bir kez; fiyat her seferinde artar). */
 export function removeShopCard(run: RunState, defId: string): RunState {
   if (run.phase !== 'shop' || run.shopRemovalUsed || run.gold < run.shopRemovalPrice) return run
@@ -382,7 +448,7 @@ export function removeShopCard(run: RunState, defId: string): RunState {
 
 export function leaveShop(run: RunState): RunState {
   if (run.phase !== 'shop') return run
-  return returnToMap({ ...run, shopCards: [], shopRelic: null })
+  return returnToMap({ ...run, shopCards: [], shopRelic: null, shopPotions: [] })
 }
 
 // ---------------------------------------------------------------------------

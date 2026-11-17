@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid'
 
 import { CARD_DEFINITIONS_MAP } from '@/data/cards'
+import { POTION_MAP } from '@/data/potions'
 import { ENEMY_DEFINITIONS_MAP } from '@/data/enemies'
 import { HAND_DRAW_SIZE, PLAYER_MAX_HP, STARTING_MAX_ENERGY } from '@/game/constants'
 import { discardWholeHandIntoDiscard, drawCards, instantiateDeck, shuffleDeck } from '@/game/engine/deckEngine'
@@ -49,12 +50,16 @@ export type StartCombatOptions = {
   enemyDefIds?: ReadonlyArray<string>
   /** Düşman can çarpanı (kat/zorluk ölçekleme). */
   enemyHpScale?: number
+  /** Düşmanların savaş başı Güç bonusu. */
+  enemyStrength?: number
   deckDefinitionIds: ReadonlyArray<string>
   playerMaxHp?: number
   /** Koşu modunda savaşlar arası taşınan can; belirtilmezse tam candan başlar. */
   playerCurrentHp?: number
   /** Aktif relic ID listesi. */
   relicIds?: ReadonlyArray<string>
+  /** Savaşa getirilen iksirler. */
+  potions?: ReadonlyArray<string>
 }
 
 export function startCombat(options: StartCombatOptions): GameState {
@@ -62,7 +67,11 @@ export function startCombat(options: StartCombatOptions): GameState {
   const { shuffled, rngSeed } = shuffleDeck(instances, sanitizeSeed(options.seed))
 
   const enemyIds = options.enemyDefIds?.length ? options.enemyDefIds : [options.enemyDefId ?? 'jaw_worm']
-  const enemies = enemyIds.map((id, i) => createEnemyRuntime(id, i * 2, options.enemyHpScale ?? 1))
+  const enemies = enemyIds.map((id, i) => {
+    const e = createEnemyRuntime(id, i * 2, options.enemyHpScale ?? 1)
+    const bonus = options.enemyStrength ?? 0
+    return bonus ? { ...e, statuses: { ...e.statuses, strength: e.statuses.strength + bonus } } : e
+  })
 
   const maxHp = options.playerMaxHp ?? PLAYER_MAX_HP
   const hp =
@@ -86,6 +95,7 @@ export function startCombat(options: StartCombatOptions): GameState {
     exhaustPile: [],
     stats: { damageDealt: 0, damageTaken: 0, cardsPlayed: 0 },
     turnCounters: { attacks: 0, skills: 0 },
+    potions: [...(options.potions ?? [])],
   }
 
   state = syncEnemyIntents(state)
@@ -138,6 +148,16 @@ export function playCard(
   next = resolveCardEffectsSequential(next, def.effects, { targetEnemyUid: targetEnemyUid ?? null })
   if (next.phase === 'playerTurn') next = applyRelicsOnCardPlayed(next, def, relicIds ?? [])
   return next
+}
+
+/** İksir kullan — enerji harcamaz; yalnızca oyuncu turunda. */
+export function drinkPotion(state: GameState, index: number, targetEnemyUid?: string | null): GameState {
+  if (state.phase !== 'playerTurn') return state
+  const id = state.potions[index]
+  const def = id ? POTION_MAP[id] : undefined
+  if (!def) return state
+  const next: GameState = { ...state, potions: state.potions.filter((_, i) => i !== index) }
+  return resolveCardEffectsSequential(next, def.effects, { targetEnemyUid: targetEnemyUid ?? null })
 }
 
 // ---------------------------------------------------------------------------

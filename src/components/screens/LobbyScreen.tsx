@@ -203,7 +203,7 @@ export function LobbyScreen({ onStartBattle, onStartRun, onContinueRun, hasSaved
                 {(
                   [
                     ['normal', 'Normal', 'Dengeli bir yolculuk'],
-                    ['hard', 'Zor', 'Düşmanlar %15 daha dayanıklı'],
+                    ['hard', 'Zor', 'Düşmanlar %12 daha dayanıklı ve +1 Güç ile başlar'],
                   ] as const
                 ).map(([value, label, hint]) => (
                   <button

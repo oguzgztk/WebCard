@@ -28,6 +28,8 @@ export type Effect =
   /** Oyuncunun mevcut bloğu kadar hasar. */
   | { kind: 'damageFromBlock'; target: TargetType }
   | { kind: 'block'; amount: number }
+  /** Oyuncu can kazanır (maksimumu aşmaz). */
+  | { kind: 'heal'; amount: number }
   | { kind: 'draw'; amount: number }
   | { kind: 'gainEnergy'; amount: number }
   | { kind: 'applyStatus'; status: StatusKey; amount: number; target: TargetType }
@@ -153,6 +155,8 @@ export interface GameState {
   stats: CombatStats
   /** Bu tur oynanan kart sayaçları (relic tetikleyicileri için); tur başında sıfırlanır. */
   turnCounters: { attacks: number; skills: number }
+  /** Savaşa getirilen iksirler (kullanıldıkça azalır, savaş sonunda koşuya geri yazılır). */
+  potions: string[]
 }
 
 export type CardDefinitionsMap = Record<string, CardDefinition>
