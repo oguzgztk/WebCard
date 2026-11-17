@@ -43,7 +43,7 @@ export const DEMIRCI: CharacterDefinition = {
   ],
   accentColor: '#c4a054',
   icon: '⚒',
-  portraitSrc: '/game-art/characters/demirci.png',
+  portraitSrc: '/game-art/characters/demirci.webp',
 }
 
 export const GOLGE: CharacterDefinition = {
@@ -67,7 +67,7 @@ export const GOLGE: CharacterDefinition = {
   ],
   accentColor: '#6a9a6a',
   icon: '🗡',
-  portraitSrc: '/game-art/characters/golge.png',
+  portraitSrc: '/game-art/characters/golge.webp',
 }
 
 export const ALL_CHARACTERS: CharacterDefinition[] = [DEMIRCI, GOLGE]

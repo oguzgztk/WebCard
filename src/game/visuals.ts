@@ -58,10 +58,10 @@ const ENEMY_ART: Record<string, string> = {
 
 export function getCardArtSrc(defId: string): string | null {
   const key = CARD_ART_KEY[defId]
-  return key ? `/game-art/cards/${key}.png` : null
+  return key ? `/game-art/cards/${key}.webp` : null
 }
 
 export function getEnemyArtSrc(enemyDefId: string): string | null {
   const key = ENEMY_ART[enemyDefId]
-  return key ? `/game-art/enemies/${key}.png` : null
+  return key ? `/game-art/enemies/${key}.webp` : null
 }
