@@ -42,6 +42,10 @@ function intentView(intent: EnemyIntent, dmg: number | null): { icon: string; te
       return { icon: '🥀', text: `${intent.value ?? 0}`, tone: 'text-[#c8a0e8] border-[#4a2a6a]', title: `Sana ${intent.value} Zayıf uygulayacak` }
     case 'apply_player_vulnerable':
       return { icon: '💔', text: `${intent.value ?? 0}`, tone: 'text-[#c8a0e8] border-[#4a2a6a]', title: `Sana ${intent.value} Savunmasız uygulayacak` }
+    case 'attack_drain':
+      return { icon: '🩸', text: dmgText, tone: 'text-[#ff7a8a] border-[#7a2030]', title: `Saldıracak (${dmg}) ve verdiği hasar kadar iyileşecek` }
+    case 'buff_all':
+      return { icon: '📯', text: `+${intent.value ?? 0}`, tone: 'text-[#f0c060] border-[#6a5020]', title: `Tüm düşmanlar ${intent.value} Güç kazanacak` }
     case 'apply_player_poison':
       return { icon: '☠', text: `${intent.value ?? 0}`, tone: 'text-[#8fd46a] border-[#2f5a1f]', title: `Sana ${intent.value} Zehir uygulayacak` }
   }

@@ -17,6 +17,8 @@ const atkDef = (value: number, block: number): EnemyIntent => ({ kind: 'attack_d
 const weak = (value: number): EnemyIntent => ({ kind: 'apply_player_weak', value })
 const vuln = (value: number): EnemyIntent => ({ kind: 'apply_player_vulnerable', value })
 const poison = (value: number): EnemyIntent => ({ kind: 'apply_player_poison', value })
+const drain = (value: number, hits?: number): EnemyIntent => ({ kind: 'attack_drain', value, hits })
+const buffAll = (value: number): EnemyIntent => ({ kind: 'buff_all', value })
 
 // ── Sıradan ────────────────────────────────────────────────────────────────
 
@@ -50,7 +52,25 @@ export const skeleton: EnemyDefinition = {
   intentScript: script([], [atkDef(9, 6), atk(15), weak(2), atkDef(9, 6), def(10)]),
 }
 
+export const mushroom: EnemyDefinition = {
+  id: 'mushroom', name: 'Sporlu Mantar', maxHp: 22, art: 'mushroom', glyph: '🍄',
+  blurb: 'Nemli köşelerde kümelenir; sporları ciğerlere işler.',
+  intentScript: script([], [poison(2), atk(5), atk(6), def(5)]),
+}
+
+export const bandit: EnemyDefinition = {
+  id: 'bandit', name: 'Yol Haydudu', maxHp: 42, art: 'bandit', glyph: '🗡',
+  blurb: 'Zindana kaçmış bir eşkıya — hızlı ve kirli dövüşür.',
+  intentScript: script([atk(9)], [atk(5, 2), atkDef(9, 6), vuln(1), atk(12)]),
+}
+
 // ── Elit ───────────────────────────────────────────────────────────────────
+
+export const karakoncolos: EnemyDefinition = {
+  id: 'karakoncolos', name: 'Karakoncolos', maxHp: 105, art: 'karakoncolos', glyph: '❄',
+  blurb: 'Zemheri gecelerinin tüylü canavarı; adını yanlış söyleyeni dondurur.',
+  intentScript: script([weak(2)], [atk(15), atk(5, 3), buff(2), atkDef(11, 11), vuln(2)]),
+}
 
 export const fungibeast: EnemyDefinition = {
   id: 'fungibeast', name: 'Mantar Canavarı', maxHp: 92, art: 'fungibeast',
@@ -75,7 +95,34 @@ export const shadowLord: EnemyDefinition = {
   ),
 }
 
+export const sahmeran: EnemyDefinition = {
+  id: 'sahmeran', name: 'Şahmeran', maxHp: 190, art: 'sahmeran', glyph: '🐍',
+  blurb: 'Yılanların kraliçesi. Zehri de bilgeliği kadar derindir.',
+  intentScript: script(
+    [poison(3)],
+    [atk(14), atk(6, 3), poison(4), atkDef(15, 14), weak(2), atk(25), buff(2)],
+  ),
+}
+
 // ═══ Perde II — Kemik Mahzenleri ═══════════════════════════════════════════
+
+export const gulyabani: EnemyDefinition = {
+  id: 'gulyabani', name: 'Gulyabani', maxHp: 62, art: 'gulyabani', glyph: '👹',
+  blurb: 'Mezarlıklarda dolaşan aç gulyabani — vurdukça iyileşir.',
+  intentScript: script([], [drain(10), def(10), drain(6, 2), atk(14)]),
+}
+
+export const albasti: EnemyDefinition = {
+  id: 'albasti', name: 'Albastı', maxHp: 52, art: 'albasti', glyph: '👁',
+  blurb: 'Gece göğsüne çöken kâbus; önce iradeni, sonra canını alır.',
+  intentScript: script([weak(2)], [vuln(2), atk(9, 2), drain(12), weak(1)]),
+}
+
+export const necromancer: EnemyDefinition = {
+  id: 'necromancer', name: 'Ölü Çağıran', maxHp: 48, art: 'necromancer', glyph: '☥',
+  blurb: 'Kemiklere fısıldar; yanındaki ölüleri her turda güçlendirir.',
+  intentScript: script([buffAll(1)], [atk(9), def(12), atk(6, 2), buffAll(1)]),
+}
 
 export const spider: EnemyDefinition = {
   id: 'spider', name: 'Mahzen Örümceği', maxHp: 30, art: 'spider', glyph: '🕷',
@@ -107,6 +154,12 @@ export const cryptWitch: EnemyDefinition = {
   intentScript: script([poison(4)], [atk(13), weak(2), atk(7, 2), buff(3), poison(5), def(16)]),
 }
 
+export const tepegoz: EnemyDefinition = {
+  id: 'tepegoz', name: 'Tepegöz', maxHp: 160, art: 'tepegoz', glyph: '👁',
+  blurb: 'Dede Korkut’un tek gözlü devi. Yumruğu bir kaya, öfkesi bir çığ.',
+  intentScript: script([def(15)], [atk(22), atk(9, 2), buff(2), atkDef(14, 14), vuln(2)]),
+}
+
 export const boneDragon: EnemyDefinition = {
   id: 'bone_dragon', name: 'Kemik Ejderi', maxHp: 260, art: 'bone_dragon', glyph: '🐉',
   blurb: 'Mahzenlerin dibinde uyuyan kadim felaket.',
@@ -117,8 +170,8 @@ export const boneDragon: EnemyDefinition = {
 }
 
 export const allEnemiesList: readonly EnemyDefinition[] = [
-  louse, bat, jawWorm, cultist, skeleton, fungibeast, stoneGolem, shadowLord,
-  spider, wraith, gargoyle, fallenKnight, cryptWitch, boneDragon,
+  louse, bat, jawWorm, cultist, skeleton, mushroom, bandit, fungibeast, stoneGolem, karakoncolos, shadowLord, sahmeran,
+  spider, wraith, gargoyle, gulyabani, albasti, necromancer, fallenKnight, cryptWitch, tepegoz, boneDragon,
 ]
 
 export const ENEMY_DEFINITIONS_MAP: EnemyDefinitionsMap = Object.fromEntries(allEnemiesList.map((e) => [e.id, e]))

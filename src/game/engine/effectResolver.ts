@@ -1,4 +1,5 @@
 import { drawCards } from '@/game/engine/deckEngine'
+import { rngFloat01 } from '@/lib/rng'
 import type { Effect, EnemyRuntime, GameState, StatusKey, Statuses, TargetType } from '@/game/types'
 
 const STATUS_CAP = 999
@@ -55,6 +56,14 @@ function targetUids(state: GameState, target: TargetType, preferredUid: string |
   return enemy ? [enemy.uid] : []
 }
 
+/** Yaşayan düşmanlardan rastgele biri — RNG tohumu ilerler (deterministik). */
+function pickRandomEnemy(state: GameState): { uid: string | null; state: GameState } {
+  const alive = state.enemies.filter((e) => e.hp > 0)
+  if (!alive.length) return { uid: null, state }
+  const { float, nextSeed } = rngFloat01(state.rngSeed)
+  return { uid: alive[Math.floor(float * alive.length)]!.uid, state: { ...state, rngSeed: nextSeed } }
+}
+
 function patchEnemy(state: GameState, uid: string, patch: (e: EnemyRuntime) => EnemyRuntime): GameState {
   return { ...state, enemies: state.enemies.map((e) => (e.uid === uid ? patch(e) : e)) }
 }
@@ -78,8 +87,11 @@ function playerHitsEnemy(state: GameState, uid: string, raw: number): GameState 
   if (!enemy) return state
   const damage = calcDamage(raw, state.player.statuses, enemy.statuses)
   const { next, hpLoss } = absorb(enemy, damage)
+  // Zehirli Bıçaklar: bloğu aşan her vuruş zehir bırakır
+  const venom = state.player.statuses.venomBlades ?? 0
+  const hit = venom > 0 && hpLoss > 0 && next.hp > 0 ? { ...next, statuses: addStacks(next.statuses, 'poison', venom) } : next
   return {
-    ...patchEnemy(state, uid, () => next),
+    ...patchEnemy(state, uid, () => hit),
     stats: { ...state.stats, damageDealt: state.stats.damageDealt + hpLoss },
   }
 }
@@ -93,8 +105,13 @@ function applyDamageEffect(
 ): GameState {
   let next = state
   for (let h = 0; h < hits; h++) {
-    for (const uid of targetUids(next, target, preferredUid)) {
-      next = playerHitsEnemy(next, uid, raw)
+    if (target === 'randomEnemy') {
+      const pick = pickRandomEnemy(next)
+      next = pick.uid ? playerHitsEnemy(pick.state, pick.uid, raw) : next
+    } else {
+      for (const uid of targetUids(next, target, preferredUid)) {
+        next = playerHitsEnemy(next, uid, raw)
+      }
     }
     next = evaluateVictory(next)
     if (next.phase === 'victory') break
@@ -210,7 +227,17 @@ export function resolveCardEffectsSequential(
         acc = { ...acc, player: { ...acc.player, energy: acc.player.energy + effect.amount } }
         break
       case 'applyStatus':
-        acc = applyStatusToTarget(acc, effect.status, effect.amount, effect.target, preferred)
+        for (let i = 0; i < Math.max(1, effect.times ?? 1); i++) {
+          if (effect.target === 'randomEnemy') {
+            const pick = pickRandomEnemy(acc)
+            if (pick.uid) acc = applyStatusToTarget(pick.state, effect.status, effect.amount, 'enemy', pick.uid)
+          } else {
+            acc = applyStatusToTarget(acc, effect.status, effect.amount, effect.target, preferred)
+          }
+        }
+        break
+      case 'loseHp':
+        acc = evaluateDefeat({ ...acc, player: { ...acc.player, hp: Math.max(0, acc.player.hp - effect.amount) } })
         break
       case 'multiplyStatus':
         acc = multiplyStatusOnTarget(acc, effect.status, effect.factor, effect.target, preferred)

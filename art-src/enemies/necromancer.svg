@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="45%" r="58%">
+    <stop offset="0" stop-color="#1a1a2c"/>
+    <stop offset="1" stop-color="#030306"/>
+  </radialGradient>
+  <filter id="grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.75  0 0 0 0.09 0"/>
+  </filter>
+  <filter id="fog" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.022" numOctaves="4" seed="11"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0.38  0 0 0 0 0.38  0 0 0 0 0.52  0 0 0 0.32 -0.1"/>
+  </filter>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="2" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="6"/>
+  </filter>
+  <radialGradient id="vig" cx="50%" cy="50%" r="75%">
+    <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0.85"/>
+  </radialGradient>
+
+</defs>
+<rect width="600" height="400" fill="url(#bg)"/>
+<rect width="600" height="400" filter="url(#fog)" opacity="0.3"/>
+
+<defs><linearGradient id="nrobe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1a3a"/><stop offset="1" stop-color="#08050c"/></linearGradient>
+<linearGradient id="nbone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ece2c8"/><stop offset="1" stop-color="#6a6050"/></linearGradient></defs>
+<circle cx="420" cy="90" r="70" fill="#7aff9a" opacity="0.18" filter="url(#glow)"/>
+<g filter="url(#rough)" stroke="#05030a" stroke-width="3">
+  <path d="M300 60 C350 60 370 110 372 160 L400 370 L200 370 L228 160 C230 110 250 60 300 60 Z" fill="url(#nrobe)"/>
+  <path d="M300 72 C340 72 352 110 348 150 L252 150 C248 110 260 72 300 72 Z" fill="#05030a"/>
+  <!-- kemik süslemeler -->
+  <path d="M250 200 L350 200 M256 240 L344 240" stroke="url(#nbone)" stroke-width="6" stroke-linecap="round"/>
+  <!-- asa -->
+  <path d="M414 100 L426 102 L398 370 L386 368 Z" fill="#3a2a1a"/>
+  <!-- kafatası asa başı -->
+  <path d="M400 80 C400 56 440 56 440 80 C440 94 432 98 432 106 L408 106 C408 98 400 94 400 80 Z" fill="url(#nbone)"/>
+  <path d="M228 200 C200 220 186 250 180 270 L198 276 C206 256 220 236 244 222 Z" fill="url(#nrobe)"/>
+  <path d="M372 200 C394 190 404 160 410 140 L392 134 C386 152 378 170 358 182 Z" fill="url(#nrobe)"/>
+</g>
+<g fill="#7aff9a"><circle cx="413" cy="82" r="4"/><circle cx="427" cy="82" r="4"/></g>
+<g fill="#7aff9a"><ellipse cx="284" cy="116" rx="7" ry="4" filter="url(#glow)"/><ellipse cx="316" cy="116" rx="7" ry="4" filter="url(#glow)"/><ellipse cx="284" cy="116" rx="3.5" ry="2"/><ellipse cx="316" cy="116" rx="3.5" ry="2"/></g>
+<path d="M180 270 C160 300 190 320 170 350" stroke="#7aff9a" stroke-width="6" fill="none" opacity="0.3" filter="url(#soft)"/>
+<g fill="#7aff9a" opacity="0.6"><circle cx="150" cy="320" r="3"/><circle cx="190" cy="360" r="2.5"/><circle cx="460" cy="160" r="2.5"/><circle cx="380" cy="40" r="2"/></g>
+
+<rect width="600" height="400" fill="url(#vig)"/>
+<rect width="600" height="400" filter="url(#grain)"/>
+</svg>

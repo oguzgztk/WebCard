@@ -4,7 +4,8 @@ export type CardType = 'attack' | 'skill' | 'power'
 export type CardRarity = 'starter' | 'common' | 'uncommon' | 'rare'
 
 /** Etkilerin hedefi. `enemy` = seçilen (yoksa ilk) düşman. */
-export type TargetType = 'enemy' | 'self' | 'allEnemies'
+/** `randomEnemy`: her uygulamada rastgele yaşayan bir düşman (deterministik RNG). */
+export type TargetType = 'enemy' | 'self' | 'allEnemies' | 'randomEnemy'
 
 export type StatusKey =
   | 'vulnerable'
@@ -19,6 +20,10 @@ export type StatusKey =
   | 'thorns'
   /** Tur başında tüm düşmanlara N zehir. */
   | 'noxious'
+  /** Blok tur başında sıfırlanmaz. */
+  | 'barricade'
+  /** Saldırı hasarı her vuruşta N zehir uygular. */
+  | 'venomBlades'
 
 export type Statuses = Record<StatusKey, number>
 
@@ -30,9 +35,11 @@ export type Effect =
   | { kind: 'block'; amount: number }
   /** Oyuncu can kazanır (maksimumu aşmaz). */
   | { kind: 'heal'; amount: number }
+  /** Oyuncu can kaybeder (bedel kartları). */
+  | { kind: 'loseHp'; amount: number }
   | { kind: 'draw'; amount: number }
   | { kind: 'gainEnergy'; amount: number }
-  | { kind: 'applyStatus'; status: StatusKey; amount: number; target: TargetType }
+  | { kind: 'applyStatus'; status: StatusKey; amount: number; target: TargetType; times?: number }
   /** Hedefteki durumu katla (ör. zehri ikiye katla). */
   | { kind: 'multiplyStatus'; status: StatusKey; factor: number; target: TargetType }
 
@@ -82,6 +89,10 @@ export type EnemyIntentKind =
   | 'apply_player_vulnerable'
   /** Oyuncuya zehir. */
   | 'apply_player_poison'
+  /** Tüm düşmanlar Güç kazanır. */
+  | 'buff_all'
+  /** Saldırı; verdiği can hasarı kadar iyileşir. */
+  | 'attack_drain'
 
 export interface EnemyIntent {
   kind: EnemyIntentKind

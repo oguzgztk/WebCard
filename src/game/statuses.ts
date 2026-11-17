@@ -8,6 +8,8 @@ export const STATUS_KEYS: readonly StatusKey[] = [
   'metallicize',
   'thorns',
   'noxious',
+  'barricade',
+  'venomBlades',
   'vulnerable',
   'weak',
   'poison',
@@ -28,6 +30,8 @@ export const STATUS_INFO: Record<StatusKey, StatusInfo> = {
   metallicize: { label: 'Zırh Kaplama', tooltip: 'Tur sonunda {n} Blok kazanır.', positive: true, icon: '🛡' },
   thorns: { label: 'Diken', tooltip: 'Saldırana her vuruşta {n} hasar verir.', positive: true, icon: '🌵' },
   noxious: { label: 'Zehirli Duman', tooltip: 'Tur başında tüm düşmanlara {n} Zehir.', positive: true, icon: '☁' },
+  barricade: { label: 'Demir İrade', tooltip: 'Blok tur başında sıfırlanmaz.', positive: true, icon: '🏰' },
+  venomBlades: { label: 'Zehirli Bıçaklar', tooltip: 'Saldırıların her vuruşta {n} Zehir uygular.', positive: true, icon: '🗡' },
   vulnerable: { label: 'Savunmasız', tooltip: 'Alınan saldırı hasarı %50 artar. {n} tur.', positive: false, icon: '💔' },
   weak: { label: 'Zayıf', tooltip: 'Verilen saldırı hasarı %25 azalır. {n} tur.', positive: false, icon: '🥀' },
   poison: { label: 'Zehir', tooltip: 'Tur başında {n} hasar alır, sonra 1 azalır.', positive: false, icon: '☠' },
@@ -43,6 +47,8 @@ export function emptyStatuses(): Statuses {
     metallicize: 0,
     thorns: 0,
     noxious: 0,
+    barricade: 0,
+    venomBlades: 0,
   }
 }
 

@@ -76,7 +76,28 @@ export const GOLGE_CARDS: CardBlueprint[] = [
     upgrade: { effects: [{ kind: 'damage', amount: 6, target: 'allEnemies' }, { kind: 'draw', amount: 1 }] },
   },
 
+  {
+    id: 'quick_slash', name: 'Çabuk Kesik', cost: 1, type: 'attack', rarity: 'common', art: 'quick_slash', glyph: '⚡',
+    effects: [{ kind: 'damage', amount: 8, target: 'enemy' }, { kind: 'draw', amount: 1 }],
+    upgrade: { effects: [{ kind: 'damage', amount: 11, target: 'enemy' }, { kind: 'draw', amount: 1 }] },
+  },
+  {
+    id: 'escape_plan', name: 'Kaçış Planı', cost: 0, type: 'skill', rarity: 'common', art: 'escape_plan', glyph: '🗺',
+    effects: [{ kind: 'draw', amount: 1 }, { kind: 'block', amount: 3 }],
+    upgrade: { effects: [{ kind: 'draw', amount: 1 }, { kind: 'block', amount: 5 }] },
+  },
+
   // ── Nadir ─────────────────────────────────────────────────────────────────
+  {
+    id: 'bouncing_flask', name: 'Seken Şişe', cost: 2, type: 'skill', rarity: 'uncommon', art: 'bouncing_flask', glyph: '🧪',
+    effects: [{ kind: 'applyStatus', status: 'poison', amount: 3, target: 'randomEnemy', times: 3 }],
+    upgrade: { effects: [{ kind: 'applyStatus', status: 'poison', amount: 3, target: 'randomEnemy', times: 4 }] },
+  },
+  {
+    id: 'caltrops', name: 'Demir Dikenler', cost: 1, type: 'power', rarity: 'uncommon', art: 'caltrops', glyph: '✳',
+    effects: [{ kind: 'applyStatus', status: 'thorns', amount: 3, target: 'self' }],
+    upgrade: { effects: [{ kind: 'applyStatus', status: 'thorns', amount: 5, target: 'self' }] },
+  },
   {
     id: 'poison_cloud', name: 'Zehir Bulutu', cost: 2, type: 'skill', rarity: 'uncommon', art: 'poison_cloud',
     effects: [{ kind: 'applyStatus', status: 'poison', amount: 4, target: 'allEnemies' }],
@@ -129,6 +150,16 @@ export const GOLGE_CARDS: CardBlueprint[] = [
     id: 'assassinate', name: 'Suikast', cost: 3, type: 'attack', rarity: 'rare', art: 'assassinate',
     effects: [{ kind: 'damage', amount: 30, target: 'enemy' }], exhaust: true,
     upgrade: { cost: 2 },
+  },
+  {
+    id: 'adrenaline', name: 'Adrenalin', cost: 0, type: 'skill', rarity: 'rare', art: 'adrenaline', glyph: '💉',
+    effects: [{ kind: 'gainEnergy', amount: 1 }, { kind: 'draw', amount: 2 }], exhaust: true,
+    upgrade: { effects: [{ kind: 'gainEnergy', amount: 2 }, { kind: 'draw', amount: 2 }] },
+  },
+  {
+    id: 'poisoned_blades', name: 'Zehirli Bıçaklar', cost: 2, type: 'power', rarity: 'rare', art: 'poisoned_blades', glyph: '🗡',
+    effects: [{ kind: 'applyStatus', status: 'venomBlades', amount: 1, target: 'self' }],
+    upgrade: { cost: 1 },
   },
   {
     id: 'noxious_fumes', name: 'Zehirli Duman', cost: 1, type: 'power', rarity: 'rare', art: 'noxious_fumes', glyph: '☁',

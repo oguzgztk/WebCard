@@ -27,7 +27,9 @@ function num(base: number, actual: number): TextPart {
 }
 
 function targetPhrase(target: TargetType): string {
-  return target === 'allEnemies' ? 'Tüm düşmanlara ' : ''
+  if (target === 'allEnemies') return 'Tüm düşmanlara '
+  if (target === 'randomEnemy') return 'Rastgele bir düşmana '
+  return ''
 }
 
 function describeEffect(effect: Effect, ctx?: CardTextContext): TextPart[] {
@@ -58,6 +60,8 @@ function describeEffect(effect: Effect, ctx?: CardTextContext): TextPart[] {
     }
     case 'heal':
       return [{ text: `${effect.amount} can kazan.` }]
+    case 'loseHp':
+      return [{ text: `${effect.amount} can kaybet.` }]
     case 'draw':
       return [{ text: `${effect.amount} kart çek.` }]
     case 'gainEnergy':
@@ -67,10 +71,11 @@ function describeEffect(effect: Effect, ctx?: CardTextContext): TextPart[] {
       if (effect.target === 'self') {
         return [{ text: `${effect.amount} ` }, { text: label, keyword: true }, { text: ' kazan.' }]
       }
+      const times = effect.times && effect.times > 1 ? ` (${effect.times} kez)` : ''
       return [
         { text: `${targetPhrase(effect.target)}${effect.amount} ` },
         { text: label, keyword: true },
-        { text: ' uygula.' },
+        { text: ` uygula${times}.` },
       ]
     }
     case 'multiplyStatus': {

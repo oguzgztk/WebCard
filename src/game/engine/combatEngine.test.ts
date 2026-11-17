@@ -259,3 +259,49 @@ describe('iksirler', () => {
     expect(drinkPotion(enemyTurn, 0)).toBe(enemyTurn)
   })
 })
+
+describe('yeni mekanikler', () => {
+  it('Demir İrade keeps block between turns', () => {
+    let s = battleWith(many('defend', 10), ['mushroom'])
+    s = { ...s, player: { ...s.player, block: 30, statuses: { ...s.player.statuses, barricade: 1 } } }
+    s = endPlayerTurn(s)
+    expect(s.player.block).toBeGreaterThan(0)
+  })
+
+  it('Zehirli Bıçaklar adds poison on unblocked hits', () => {
+    let s = battleWith(many('strike', 10), ['jaw_worm'])
+    s = { ...s, player: { ...s.player, statuses: { ...s.player.statuses, venomBlades: 1 } } }
+    s = play(s, 'strike')
+    expect(s.enemies[0]!.statuses.poison).toBe(1)
+  })
+
+  it('Seken Şişe spreads poison randomly but deterministically', () => {
+    const base = battleWith(many('bouncing_flask', 10), ['louse', 'louse', 'louse'])
+    const a = play(base, 'bouncing_flask')
+    const b = play(base, 'bouncing_flask')
+    const total = a.enemies.reduce((n, e) => n + e.statuses.poison, 0)
+    expect(total).toBe(9)
+    expect(a.enemies.map((e) => e.statuses.poison)).toEqual(b.enemies.map((e) => e.statuses.poison))
+  })
+
+  it('Kan Bedeli costs HP and gives energy', () => {
+    let s = battleWith(many('bloodletting', 10))
+    const hp = s.player.hp
+    s = play(s, 'bloodletting')
+    expect(s.player.hp).toBe(hp - 3)
+    expect(s.player.energy).toBe(5)
+  })
+
+  it('draining attacks heal the enemy', () => {
+    let s = battleWith(many('defend', 10), ['gulyabani'])
+    s = { ...s, enemies: s.enemies.map((e) => ({ ...e, hp: 20 })) }
+    s = endPlayerTurn(s)
+    expect(s.enemies[0]!.hp).toBeGreaterThan(20)
+  })
+
+  it('Ölü Çağıran buffs every enemy', () => {
+    const s = endPlayerTurn(battleWith(many('defend', 10), ['necromancer', 'skeleton']))
+    expect(s.enemies.every((e) => e.statuses.strength > 0)).toBe(true)
+    expect(new Set(s.enemies.map((e) => e.statuses.strength)).size).toBe(1)
+  })
+})

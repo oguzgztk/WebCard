@@ -65,8 +65,15 @@ function scoreCard(g: GameState, def: CardDefinition): number {
       case 'gainEnergy':
         score += 5 * e.amount
         break
+      case 'loseHp':
+        score -= e.amount * 0.8
+        break
+      case 'heal':
+        score += e.amount * 0.5
+        break
       case 'applyStatus':
-        if (e.target === 'self') score += (g.playerTurnCount < 3 ? 9 : 4) * e.amount
+        if (e.target === 'self' && ['vulnerable', 'weak', 'poison'].includes(e.status)) score -= (unblocked > 0 ? 6 : 2) * e.amount
+        else if (e.target === 'self') score += (g.playerTurnCount < 3 ? 9 : 4) * e.amount
         else if (e.status === 'poison') score += e.amount * 1.8 * (e.target === 'allEnemies' ? g.enemies.length : 1)
         else score += 3 * e.amount
         break

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 427" width="640" height="427">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="72%">
+    <stop offset="0" stop-color="#1e2418"/>
+    <stop offset="1" stop-color="#040503"/>
+  </radialGradient>
+  <filter id="grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.75  0 0 0 0.09 0"/>
+  </filter>
+  <filter id="fog" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.022" numOctaves="4" seed="11"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0.42  0 0 0 0 0.45  0 0 0 0 0.35  0 0 0 0.32 -0.1"/>
+  </filter>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="2" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="6"/>
+  </filter>
+  <radialGradient id="vig" cx="50%" cy="50%" r="75%">
+    <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0.85"/>
+  </radialGradient>
+
+</defs>
+<rect width="640" height="427" fill="url(#bg)"/>
+<rect width="640" height="427" filter="url(#fog)" opacity="0.45"/>
+
+<defs><linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8d8b0"/><stop offset="1" stop-color="#8a7448"/></linearGradient></defs>
+<g filter="url(#rough)"><path d="M140 100 L500 80 L520 340 L160 360 Z" fill="url(#paper)" stroke="#3a2a14" stroke-width="3"/></g>
+<g stroke="#5a3a1a" stroke-width="3" fill="none" opacity="0.8"><path d="M190 300 C240 260 260 300 300 240 C340 180 380 220 420 170 C440 150 460 140 470 130" stroke-dasharray="10 8"/><path d="M200 140 L260 140 L260 190 M330 120 L330 170 L390 170"/></g>
+<path d="M455 115 L485 145 M485 115 L455 145" stroke="#a01a14" stroke-width="7" stroke-linecap="round"/>
+<circle cx="190" cy="300" r="10" fill="#2a6a2a"/>
+<g fill="#3a2a14" opacity="0.5"><circle cx="220" cy="220" r="4"/><circle cx="380" cy="270" r="5"/></g>
+<rect width="640" height="427" fill="url(#vig)"/>
+<rect width="640" height="427" filter="url(#grain)"/>
+</svg>

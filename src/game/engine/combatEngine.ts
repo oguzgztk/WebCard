@@ -237,6 +237,31 @@ export function resolveEnemyAction(state: GameState, enemyUid: string): GameStat
       const withBlock = patchSelf((e) => ({ ...e, block: e.block + (intent.block ?? 0) }))
       return attack(withBlock, intent.value ?? 0, Math.max(1, intent.hits ?? 1))
     }
+    case 'attack_drain': {
+      // Vurduğu can hasarı kadar iyileşir
+      let next = state
+      for (let s = 0; s < Math.max(1, intent.hits ?? 1); s++) {
+        const attacker = next.enemies.find((e) => e.uid === enemyUid && e.hp > 0)
+        if (!attacker || next.phase !== 'enemyTurn') break
+        const before = next.player.hp
+        next = enemyHitsPlayer(next, attacker, intent.value ?? 0)
+        const drained = before - next.player.hp
+        if (drained > 0) {
+          next = {
+            ...next,
+            enemies: next.enemies.map((e) => (e.uid === enemyUid ? { ...e, hp: Math.min(e.maxHp, e.hp + drained) } : e)),
+          }
+        }
+      }
+      return next
+    }
+    case 'buff_all':
+      return {
+        ...state,
+        enemies: state.enemies.map((e) =>
+          e.hp > 0 ? { ...e, statuses: { ...e.statuses, strength: clampStatusStacks(e.statuses.strength + (intent.value ?? 0)) } } : e,
+        ),
+      }
     case 'defend':
       return patchSelf((e) => ({ ...e, block: e.block + (intent.value ?? 0) }))
     case 'buff':
@@ -274,7 +299,8 @@ export function finishEnemyTurn(state: GameState, relicIds?: RelicIds): GameStat
     ...next,
     phase: 'playerTurn',
     playerTurnCount: next.playerTurnCount + 1,
-    player: { ...next.player, block: 0, energy: next.player.maxEnergy },
+    // Demir İrade varken blok korunur
+    player: { ...next.player, block: next.player.statuses.barricade > 0 ? next.player.block : 0, energy: next.player.maxEnergy },
     turnCounters: { attacks: 0, skills: 0 },
   }
 
@@ -324,7 +350,7 @@ export function endPlayerTurn(state: GameState, relicIds?: RelicIds): GameState 
 /** Düşman niyetinin oyuncuya vuruş başına gerçek hasarı (saldırı değilse `null`). */
 export function intentHitDamage(state: GameState, enemy: EnemyRuntime): number | null {
   const { intent } = enemy
-  if (intent.kind !== 'attack' && intent.kind !== 'attack_defend') return null
+  if (intent.kind !== 'attack' && intent.kind !== 'attack_defend' && intent.kind !== 'attack_drain') return null
   return calcDamage(intent.value ?? 0, enemy.statuses, state.player.statuses)
 }
 

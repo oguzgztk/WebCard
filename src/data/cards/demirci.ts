@@ -77,7 +77,51 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
     upgrade: { effects: [{ kind: 'damage', amount: 15, target: 'enemy' }] },
   },
 
+  {
+    id: 'cleave', name: 'Biçme', cost: 1, type: 'attack', rarity: 'common', art: 'cleave', glyph: '🪓',
+    effects: [{ kind: 'damage', amount: 8, target: 'allEnemies' }],
+    upgrade: { effects: [{ kind: 'damage', amount: 11, target: 'allEnemies' }] },
+  },
+  {
+    id: 'reckless_charge', name: 'Pervasız Hücum', cost: 0, type: 'attack', rarity: 'common', art: 'reckless_charge', glyph: '🐂',
+    effects: [
+      { kind: 'damage', amount: 8, target: 'enemy' },
+      { kind: 'applyStatus', status: 'vulnerable', amount: 1, target: 'self' },
+    ],
+    upgrade: {
+      effects: [
+        { kind: 'damage', amount: 11, target: 'enemy' },
+        { kind: 'applyStatus', status: 'vulnerable', amount: 1, target: 'self' },
+      ],
+    },
+  },
+  {
+    id: 'shield_wall', name: 'Kalkan Duvarı', cost: 2, type: 'skill', rarity: 'common', art: 'shield_wall', glyph: '🧱',
+    effects: [{ kind: 'block', amount: 13 }, { kind: 'applyStatus', status: 'thorns', amount: 1, target: 'self' }],
+    upgrade: { effects: [{ kind: 'block', amount: 17 }, { kind: 'applyStatus', status: 'thorns', amount: 2, target: 'self' }] },
+  },
+
   // ── Nadir ─────────────────────────────────────────────────────────────────
+  {
+    id: 'uppercut', name: 'Sarsıcı Darbe', cost: 2, type: 'attack', rarity: 'uncommon', art: 'uppercut', glyph: '👊',
+    effects: [
+      { kind: 'damage', amount: 13, target: 'enemy' },
+      { kind: 'applyStatus', status: 'weak', amount: 1, target: 'enemy' },
+      { kind: 'applyStatus', status: 'vulnerable', amount: 1, target: 'enemy' },
+    ],
+    upgrade: {
+      effects: [
+        { kind: 'damage', amount: 13, target: 'enemy' },
+        { kind: 'applyStatus', status: 'weak', amount: 2, target: 'enemy' },
+        { kind: 'applyStatus', status: 'vulnerable', amount: 2, target: 'enemy' },
+      ],
+    },
+  },
+  {
+    id: 'bloodletting', name: 'Kan Bedeli', cost: 0, type: 'skill', rarity: 'uncommon', art: 'bloodletting', glyph: '🩸',
+    effects: [{ kind: 'loseHp', amount: 3 }, { kind: 'gainEnergy', amount: 2 }],
+    upgrade: { effects: [{ kind: 'loseHp', amount: 3 }, { kind: 'gainEnergy', amount: 3 }] },
+  },
   {
     id: 'blade_dance', name: 'Kılıç Dansı', cost: 1, type: 'attack', rarity: 'uncommon', art: 'duel',
     effects: [{ kind: 'damage', amount: 3, hits: 3, target: 'enemy' }],
@@ -152,6 +196,11 @@ export const DEMIRCI_CARDS: CardBlueprint[] = [
         { kind: 'applyStatus', status: 'vulnerable', amount: 2, target: 'allEnemies' },
       ],
     },
+  },
+  {
+    id: 'iron_will', name: 'Demir İrade', cost: 3, type: 'power', rarity: 'rare', art: 'iron_will', glyph: '🏰',
+    effects: [{ kind: 'applyStatus', status: 'barricade', amount: 1, target: 'self' }],
+    upgrade: { cost: 2 },
   },
   {
     id: 'forge_spirit', name: 'Örs Ruhu', cost: 2, type: 'power', rarity: 'rare', art: 'forge_spirit', glyph: '⚒',

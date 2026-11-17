@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="45%" r="58%">
+    <stop offset="0" stop-color="#24301c"/>
+    <stop offset="1" stop-color="#040503"/>
+  </radialGradient>
+  <filter id="grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.75  0 0 0 0.09 0"/>
+  </filter>
+  <filter id="fog" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.022" numOctaves="4" seed="11"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0.4  0 0 0 0 0.48  0 0 0 0 0.3  0 0 0 0.32 -0.1"/>
+  </filter>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="2" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="6"/>
+  </filter>
+  <radialGradient id="vig" cx="50%" cy="50%" r="75%">
+    <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0.85"/>
+  </radialGradient>
+
+</defs>
+<rect width="600" height="400" fill="url(#bg)"/>
+<rect width="600" height="400" filter="url(#fog)" opacity="0.3"/>
+
+<defs><radialGradient id="cap" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="#d06a4a"/><stop offset="0.6" stop-color="#7a2a1a"/><stop offset="1" stop-color="#2a0c06"/></radialGradient>
+<linearGradient id="stem" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a7a5a"/><stop offset="0.5" stop-color="#e8dcc0"/><stop offset="1" stop-color="#6a5a40"/></linearGradient></defs>
+<circle cx="300" cy="200" r="150" fill="#b8ff60" opacity="0.08" filter="url(#glow)"/>
+<g filter="url(#rough)" stroke="#120806" stroke-width="3">
+  <path d="M262 200 C258 260 250 310 240 352 L360 352 C350 310 342 260 338 200 Z" fill="url(#stem)"/>
+  <path d="M150 210 C150 110 220 70 300 70 C380 70 450 110 450 210 C400 196 200 196 150 210 Z" fill="url(#cap)"/>
+  <path d="M160 206 C210 226 390 226 440 206" fill="none" stroke="#e8c8a0" stroke-width="4"/>
+</g>
+<g fill="#f0e0c0" opacity="0.85"><circle cx="230" cy="130" r="14"/><circle cx="300" cy="100" r="11"/><circle cx="370" cy="140" r="16"/><circle cx="270" cy="170" r="8"/><circle cx="410" cy="180" r="7"/><circle cx="196" cy="176" r="8"/></g>
+<g fill="#ffe060"><circle cx="280" cy="262" r="7" filter="url(#glow)"/><circle cx="320" cy="262" r="7" filter="url(#glow)"/><circle cx="280" cy="262" r="3"/><circle cx="320" cy="262" r="3"/></g>
+<path d="M282 292 C292 300 308 300 318 292" stroke="#2a1c10" stroke-width="4" fill="none"/>
+<g fill="#c8ff80" opacity="0.6"><circle cx="150" cy="120" r="3"/><circle cx="450" cy="100" r="2.5"/><circle cx="480" cy="250" r="3"/><circle cx="120" cy="280" r="2"/><circle cx="330" cy="40" r="2"/><circle cx="220" cy="50" r="2.5"/></g>
+
+<rect width="600" height="400" fill="url(#vig)"/>
+<rect width="600" height="400" filter="url(#grain)"/>
+</svg>
