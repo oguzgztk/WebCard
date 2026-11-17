@@ -6,23 +6,42 @@ Bu dosya Web Card için uzun vadeli geliştirme yol haritasını özetler. Hedef
 
 ## Vizyon
 
-**Şimdi:** Lobi → tek savaş → sonuç → menü.
+**Başlangıç:** Lobi → tek savaş → sonuç → menü.
 
-**Hedef:** Lobi → **koşu** (harita / düğümler) → ardışık savaşlar → ödüller (kart, altın, relic) → boss → zafer/yenilgi → (opsiyonel) meta ilerleme.
+**Hedef (ulaşıldı):** Lobi → **koşu** (harita / düğümler) → ardışık savaşlar → ödüller (kart, altın, relic) → boss → zafer/yenilgi → (opsiyonel) meta ilerleme.
 
 ---
 
-## Mevcut Teknik Temel (Özet)
+## Durum (Kasım 2026)
+
+Faz 1–6 tamamlandı; Faz 7'nin kayıt kısmı ve Faz 8'in çoğu yapıldı. Ayrıntı için README.
 
 | Alan | Durum |
 |------|--------|
-| Çatışma motoru (`combatEngine`, `effectResolver`, `intentEngine`, `deckEngine`) | Sağlam; deterministik RNG |
-| Kart / düşman verisi (`src/data`) | Genişletilebilir |
-| Statüler (`vulnerable`, `weak`) | Oyuncu & düşman |
-| UI | Savaş ekranı, lobi, kart / düşman görselleri |
-| **Eksik** | Run state, harita, ödül, meta, çoklu savaş zinciri |
+| Koşu yapısı, dallanan 13 katlı harita | ✅ |
+| Kart ödülü, altın, tüccar (kart/yadigâr/iksir/kart çıkarma) | ✅ |
+| Kamp ateşi (dinlen / yükselt) | ✅ |
+| Yükseltmeler, yeni statüler, anahtar kelimeler, güç kartları | ✅ |
+| İki karakter, başlangıç yadigârları | ✅ |
+| 17 yadigâr (6 hook noktası), 10 iksir | ✅ |
+| 11 olay, çoklu etkili seçimler | ✅ |
+| Kayıt (koşu + süren savaş), meta istatistikler, Zor mod, Günün Koşusu | ✅ |
+| Ses (sentez), müzik, titreşim, animasyonlar, klavye, mobil, rehber | ✅ |
+| Denge simülatörü (`npm run simulate`) | ✅ |
+
+## Sıradaki Fikirler
+
+1. **İkinci perde (Act 2):** yeni düşman seti, yeni boss, perdeler arası boss yadigârı (`boss` tier'ı hazır).
+2. **Ascension katmanları:** Zor modun üstüne kademeli zorluklar (ör. daha az iyileşme, elit güçlenmesi).
+3. **Üçüncü karakter** (ör. büyü/enerji odaklı) ve karakter başına kart görselleri.
+4. **Kart sürükle-bırak** (masaüstü) ve kart oynama hedef çizgisi.
+5. **Lanetler / durum kartları** (olaylardan gelen, desteyi kirleten kartlar).
+6. **Açılabilir içerik:** galibiyetlerle yeni kart/yadigâr havuzuna ekleme.
+7. **PWA:** çevrimdışı oynanabilir kurulum.
 
 ---
+
+## Tarihçe: Orijinal Plan
 
 ## Faz 1 — Koşu (Run) Yapısı
 

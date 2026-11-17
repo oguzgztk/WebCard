@@ -111,7 +111,8 @@ export default function App() {
       key: 'lobby',
       el: (
         <LobbyScreen
-          onStartBattle={setQuickBattle}
+          // Her seferinde yeni nesne: aynı hazır savaş tekrar seçilince önceki savaşın durumu görünmesin.
+          onStartBattle={(choice) => setQuickBattle({ ...choice })}
           onStartRun={(characterId, difficulty, daily) =>
             store.startRun(daily ? dailySeed() : Date.now(), characterId, difficulty, daily)
           }
