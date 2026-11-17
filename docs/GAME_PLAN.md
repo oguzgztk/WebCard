@@ -14,29 +14,30 @@ Bu dosya Web Card için uzun vadeli geliştirme yol haritasını özetler. Hedef
 
 ## Durum (Kasım 2026)
 
-Faz 1–6 tamamlandı; Faz 7'nin kayıt kısmı ve Faz 8'in çoğu yapıldı. Ayrıntı için README.
+Orijinal planın 8 fazı ve ilk öneri turunun tamamı yapıldı. Ayrıntı için README.
 
 | Alan | Durum |
 |------|--------|
-| Koşu yapısı, dallanan 13 katlı harita | ✅ |
+| Koşu yapısı; iki perde, perde başına dallanan 13 kat | ✅ |
 | Kart ödülü, altın, tüccar (kart/yadigâr/iksir/kart çıkarma) | ✅ |
 | Kamp ateşi (dinlen / yükselt) | ✅ |
 | Yükseltmeler, yeni statüler, anahtar kelimeler, güç kartları | ✅ |
 | İki karakter, başlangıç yadigârları | ✅ |
-| 17 yadigâr (6 hook noktası), 10 iksir | ✅ |
+| 22 yadigâr (6 boss yadigârı), 10 iksir | ✅ |
 | 11 olay, çoklu etkili seçimler | ✅ |
-| Kayıt (koşu + süren savaş), meta istatistikler, Zor mod, Günün Koşusu | ✅ |
-| Ses (sentez), müzik, titreşim, animasyonlar, klavye, mobil, rehber | ✅ |
-| Denge simülatörü (`npm run simulate`) | ✅ |
+| Kayıt, meta istatistikler, Yükseliş 0–10, Günün Koşusu | ✅ |
+| Ses (sentez), müzik, titreşim, animasyonlar, sürükle-bırak, klavye, mobil, rehber | ✅ |
+| Tüm kartlar ve düşmanlar görselli (boyalı + vektör) | ✅ |
+| Denge simülatörü, uçtan uca tarayıcı testi | ✅ |
 
 ## Sıradaki Fikirler
 
-1. **İkinci perde (Act 2):** yeni düşman seti, yeni boss, perdeler arası boss yadigârı (`boss` tier'ı hazır).
-2. **Ascension katmanları:** Zor modun üstüne kademeli zorluklar (ör. daha az iyileşme, elit güçlenmesi).
-3. **Üçüncü karakter** (ör. büyü/enerji odaklı) ve karakter başına kart görselleri.
-4. **Kart sürükle-bırak** (masaüstü) ve kart oynama hedef çizgisi.
-5. **Lanetler / durum kartları** (olaylardan gelen, desteyi kirleten kartlar).
-6. **Açılabilir içerik:** galibiyetlerle yeni kart/yadigâr havuzuna ekleme.
+1. **Üçüncü perde** ve gizli final boss (Yükseliş'te açılır).
+2. **Üçüncü karakter** (ör. büyü/enerji odaklı) — kart havuzu + başlangıç yadigârı.
+3. **Lanetler / durum kartları** (olaylardan ve bazı düşmanlardan gelen, desteyi kirleten kartlar).
+4. **Açılabilir içerik:** galibiyetlerle yeni kart/yadigâr havuzuna ekleme.
+5. **Vektör çizimlerin boyalı görsellerle değiştirilmesi** (aynı dosya adlarıyla `public/game-art`'a koymak yeterli).
+6. **Kart oynarken hedef oku** ve düşman ölüm/patlama efektleri.
 7. **PWA:** çevrimdışı oynanabilir kurulum.
 
 ---

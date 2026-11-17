@@ -12,7 +12,9 @@
     "test": "NODE_OPTIONS='--disable-warning=DEP0205' vitest run",
     "simulate": "vite-node scripts/simulate.ts",
     "playtest": "node scripts/playtest.mjs",
-    "optimize-images": "node scripts/optimize-images.mjs"
+    "optimize-images": "node scripts/optimize-images.mjs",
+    "fullrun": "node scripts/fullrun.mjs",
+    "screens": "node scripts/screens.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
